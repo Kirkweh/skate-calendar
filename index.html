@@ -1,0 +1,1587 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>滑板训练日历</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+    min-height: 100vh;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+    color: #fff;
+  }
+  .container { max-width: 1400px; margin: 0 auto; padding: 16px 24px; }
+  @media (max-width: 768px) { .container { padding: 12px; } }
+
+  /* Header */
+  .header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-icon { font-size: 30px; }
+  .header-title {
+    font-size: 28px; font-weight: 900; letter-spacing: -0.5px;
+    background: linear-gradient(90deg, #00ff87, #00d4ff);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .header-sub { font-size: 12px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+  /* Main grid */
+  .main-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; }
+  @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
+
+  /* Glass panel */
+  .glass {
+    background: rgba(37, 37, 64, 0.6);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 20px;
+  }
+
+  /* Calendar nav */
+  .cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .cal-title { font-size: 18px; font-weight: 700; }
+
+  /* Calendar */
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; grid-auto-rows: 1fr; }
+  .cal-weekday { text-align: center; font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 600; padding: 4px 0; }
+  .cal-cell {
+    background: rgba(37,37,64,0.6);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px;
+    padding: 6px;
+    cursor: pointer;
+    height: 88px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transition: all 0.2s ease;
+  }
+  .cal-cell:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.25); }
+  .cal-cell.has-plan {
+    background: linear-gradient(135deg, rgba(255,90,60,0.18), rgba(168,85,247,0.15));
+    border-color: rgba(255,90,60,0.4);
+  }
+  .cal-cell.selected { outline: 2px solid #00e0ff; outline-offset: -2px; }
+  .cal-cell.other-month { opacity: 0.3; }
+  .cal-cell.today .day-num { background: #ff5a3c; color: #fff; border-radius: 50%; }
+  .day-num { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+
+  .tag {
+    display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 999px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-bottom: 2px;
+  }
+
+  /* Form */
+  .form-group { margin-bottom: 12px; }
+  .form-label { display: block; font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
+  .form-input, .form-select, .form-textarea {
+    background: rgba(15,15,26,0.6);
+    border: 1px solid rgba(255,255,255,0.12);
+    color: #fff; border-radius: 8px; padding: 8px 12px; width: 100%;
+    outline: none; transition: border 0.2s; font-size: 14px; font-family: inherit;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: #00e0ff; }
+  .form-select option { background: #1a1a2e; color: #fff; }
+  .form-textarea { resize: vertical; }
+  .form-actions { display: flex; gap: 8px; padding-top: 4px; }
+  .select-row { display: flex; gap: 8px; align-items: center; }
+  .select-row .form-select { flex: 1; }
+  .add-box { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+  .add-box .form-input { flex: 1; }
+  .form-hint { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: normal; }
+  .btn-link { background: none; border: none; color: #ff6b6b; font-size: 12px; cursor: pointer; padding: 4px 0; margin-top: 4px; text-decoration: underline; }
+  .btn-link:hover { color: #ff8888; }
+  .content-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 28px; }
+  .content-tag {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: linear-gradient(135deg, rgba(255,90,60,0.25), rgba(168,85,247,0.2));
+    border: 1px solid rgba(255,90,60,0.4);
+    color: #fff; font-size: 12px; padding: 4px 10px; border-radius: 999px;
+  }
+  .content-tag .tag-remove {
+    cursor: pointer; color: rgba(255,255,255,0.7); font-weight: bold;
+    width: 14px; height: 14px; display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 50%; background: rgba(0,0,0,0.2); font-size: 10px; line-height: 1;
+  }
+  .content-tag .tag-remove:hover { background: rgba(255,61,61,0.5); color: #fff; }
+  .content-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .content-row .form-input { flex: 1; }
+  .content-row .row-btn {
+    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; border: none; flex-shrink: 0;
+  }
+  .row-add { background: linear-gradient(135deg, #ff5a3c, #ff3db2); color: #fff; }
+  .row-add:hover { opacity: 0.85; }
+  .row-del { background: rgba(255,61,61,0.15); color: #ff6b6b; }
+  .row-del:hover { background: rgba(255,61,61,0.3); }
+
+  /* Content item + video */
+  .content-item { margin-bottom: 8px; }
+  .video-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 4px 0; }
+  .video-btn {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; padding: 5px 10px; border-radius: 8px; cursor: pointer;
+    border: 1px solid rgba(255,255,255,0.14); background: rgba(255,255,255,0.06); color: #fff;
+  }
+  .video-btn:hover { background: rgba(255,255,255,0.12); }
+  .video-btn.upload { background: linear-gradient(135deg, rgba(0,224,255,0.18), rgba(168,85,247,0.18)); border-color: rgba(0,224,255,0.35); }
+  .video-btn.upload.disabled { opacity: 0.5; cursor: not-allowed; }
+  .video-btn.remove { color: #ff6b6b; border-color: rgba(255,61,61,0.3); background: rgba(255,61,61,0.1); }
+  .video-file-input { display: none; }
+  .video-chip { font-size: 11px; color: rgba(255,255,255,0.7); background: rgba(0,0,0,0.25); padding: 4px 8px; border-radius: 999px; }
+  .video-diag { width: 100%; font-size: 10px; color: rgba(255,255,255,0.4); line-height: 1.4; word-break: break-all; }
+  .video-player { margin-top: 6px; }
+  .content-video { width: 100%; border-radius: 8px; background: #000; display: block; }
+
+  /* Buttons */
+  .btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; transition: all 0.2s; cursor: pointer; border: none; font-size: 14px; }
+  .btn-primary { background: linear-gradient(135deg, #ff5a3c, #ff3db2); color: #fff; }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-ghost { background: rgba(255,255,255,0.08); color: #fff; border: 1px solid rgba(255,255,255,0.12); }
+  .btn-ghost:hover { background: rgba(255,255,255,0.14); }
+  .btn-danger { background: rgba(255,61,61,0.15); color: #ff6b6b; border: 1px solid rgba(255,61,61,0.3); }
+  .btn-danger:hover { background: rgba(255,61,61,0.25); }
+
+  /* Right panel */
+  .right-panel { display: flex; flex-direction: column; gap: 20px; }
+  .panel-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
+  .empty-state { text-align: center; padding: 32px 0; color: rgba(255,255,255,0.4); font-size: 14px; line-height: 1.6; }
+
+  /* Summary */
+  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  .stat-card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 12px; padding: 12px; text-align: center;
+  }
+  .stat-value { font-size: 24px; font-weight: 900; }
+  .stat-label { font-size: 10px; color: rgba(255,255,255,0.5); margin-top: 2px; }
+  .c-accent { color: #ff5a3c; }
+  .c-neon { color: #00e0ff; }
+  .c-yellow { color: #ffd60a; }
+
+  .section-label { font-size: 12px; color: rgba(255,255,255,0.6); font-weight: 600; margin-bottom: 8px; margin-top: 16px; }
+  .section-label:first-of-type { margin-top: 0; }
+
+  .bar-row { margin-bottom: 8px; }
+  .bar-row-head { display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 4px; }
+  .bar-row-val { color: rgba(255,255,255,0.7); }
+  .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+  .detail-list { max-height: 240px; overflow-y: auto; padding-right: 4px; }
+  .detail-item {
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 10px; margin-bottom: 8px; font-size: 12px;
+  }
+  .detail-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .detail-day { font-weight: 700; }
+  .detail-meta { color: rgba(255,255,255,0.6); }
+  .detail-content { color: rgba(255,255,255,0.8); margin-bottom: 4px; }
+  .detail-duration { color: #ff5a3c; font-weight: 700; }
+
+  .footer { text-align: center; color: rgba(255,255,255,0.3); font-size: 12px; margin-top: 24px; padding-bottom: 16px; }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+
+  /* Toast */
+  #toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    background: rgba(37,37,64,0.9); backdrop-filter: blur(12px);
+    border: 1px solid rgba(255,255,255,0.12);
+    padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600;
+    z-index: 50; transition: opacity 0.5s; opacity: 0;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <div class="header-icon">🛹</div>
+      <div>
+        <h1 class="header-title">滑板训练日历</h1>
+        <p class="header-sub">记录每一次滑行 · 规划每一次突破</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <select id="yearSelect" class="form-select" style="width:auto;font-size:13px;"></select>
+      <select id="monthSelect" class="form-select" style="width:auto;font-size:13px;"></select>
+      <button id="todayBtn" class="btn btn-ghost" style="font-size:13px;">今天</button>
+      <button id="exportBtn" class="btn btn-primary" style="font-size:13px;">📄 导出 PDF</button>
+      <button id="clearDataBtn" class="btn btn-ghost" style="font-size:13px;color:#ff6b6b;">🗑️ 清空数据</button>
+    </div>
+  </header>
+
+  <!-- Main Layout -->
+  <div class="main-grid">
+    <!-- Calendar -->
+    <section class="glass">
+      <div class="cal-nav">
+        <button id="prevMonth" class="btn btn-ghost" style="font-size:13px;">◀ 上月</button>
+        <h2 id="monthTitle" class="cal-title"></h2>
+        <button id="nextMonth" class="btn btn-ghost" style="font-size:13px;">下月 ▶</button>
+      </div>
+      <div class="cal-grid" style="margin-bottom:6px;">
+        <div class="cal-weekday">日</div>
+        <div class="cal-weekday">一</div>
+        <div class="cal-weekday">二</div>
+        <div class="cal-weekday">三</div>
+        <div class="cal-weekday">四</div>
+        <div class="cal-weekday">五</div>
+        <div class="cal-weekday">六</div>
+      </div>
+      <div id="calendar" class="cal-grid"></div>
+    </section>
+
+    <!-- Right Panel -->
+    <section class="right-panel">
+      <!-- Detail / Edit -->
+      <div class="glass">
+        <h3 id="detailDate" class="panel-title">请选择日期</h3>
+        <div id="detailEmpty" class="empty-state">
+          点击左侧日历中的日期<br>添加或查看训练记录
+        </div>
+        <form id="planForm" style="display:none;">
+          <div class="form-group">
+            <label class="form-label">教练 <span class="form-hint">（可自定义添加）</span></label>
+            <div class="select-row">
+              <select id="fCoach" class="form-select"></select>
+              <button type="button" id="addCoachBtn" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;">+</button>
+            </div>
+            <div id="coachAddBox" class="add-box" style="display:none;">
+              <input id="newCoachInput" class="form-input" type="text" placeholder="输入教练名称">
+              <button type="button" id="confirmAddCoach" class="btn btn-primary" style="padding:8px 12px;font-size:12px;">添加</button>
+              <button type="button" id="cancelAddCoach" class="btn btn-ghost" style="padding:8px 12px;font-size:12px;">取消</button>
+            </div>
+            <button type="button" id="delCoachBtn" class="btn-link" style="display:none;">删除此自定义教练</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">场地 <span class="form-hint">（可自定义添加）</span></label>
+            <div class="select-row">
+              <select id="fVenue" class="form-select"></select>
+              <button type="button" id="addVenueBtn" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;">+</button>
+            </div>
+            <div id="venueAddBox" class="add-box" style="display:none;">
+              <input id="newVenueInput" class="form-input" type="text" placeholder="输入场地名称">
+              <button type="button" id="confirmAddVenue" class="btn btn-primary" style="padding:8px 12px;font-size:12px;">添加</button>
+              <button type="button" id="cancelAddVenue" class="btn btn-ghost" style="padding:8px 12px;font-size:12px;">取消</button>
+            </div>
+            <button type="button" id="delVenueBtn" class="btn-link" style="display:none;">删除此自定义场地</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">训练内容 <span class="form-hint">（点＋添加多项，可输入或选预设）</span></label>
+            <datalist id="contentPresetList"></datalist>
+            <div id="contentRows"></div>
+            <div class="select-row" style="margin-top:8px;">
+              <button type="button" id="addContentPresetBtn" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;">＋ 管理预设内容</button>
+            </div>
+            <div id="contentPresetBox" class="add-box" style="display:none;">
+              <input id="newContentInput" class="form-input" type="text" placeholder="输入练习内容，如 Ollie、碗池滑行">
+              <button type="button" id="confirmAddContent" class="btn btn-primary" style="padding:8px 12px;font-size:12px;">保存</button>
+              <button type="button" id="cancelAddContent" class="btn btn-ghost" style="padding:8px 12px;font-size:12px;">取消</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">训练时长（小时）</label>
+            <input id="fDuration" class="form-input" type="number" step="0.5" min="0" placeholder="例如 1.5">
+          </div>
+          <div class="form-actions">
+            <button type="button" id="saveBtn" class="btn btn-primary" style="flex:1;">💾 保存</button>
+            <button type="button" id="deleteBtn" class="btn btn-danger">删除</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Monthly Summary -->
+      <div class="glass">
+        <h3 class="panel-title">📊 <span id="summaryTitle">本月训练总结</span></h3>
+        <div id="summaryBody"></div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="footer">数据与视频均保存在本地浏览器 · 不会上传到服务器 · <span id="storageStatus"></span></footer>
+</div>
+
+<script>
+/* 全局错误捕获，便于在运行时诊断问题 */
+window.addEventListener('error', (e) => {
+  const msg = '❌ JS错误: ' + (e.message || '未知') + (e.filename ? ' @' + e.filename.split('/').pop() : '');
+  console.error(msg, e.error);
+  try { flashToast(msg); } catch (x) {}
+});
+
+/* =========================
+   常量与数据层
+   ========================= */
+const COACHES = ['自己练习']; // 仅保留"自己练习"，其余由用户自定义
+const VENUES = ['ban滑板场', 'uride六里桥', '首钢极限公园', '大兴woodward', '楼下']; // 预设场地
+const CONTENT_PRESETS = ['kickflip']; // 预设练习内容
+const CUSTOM_COACHES_KEY = 'skate_custom_coaches_v1';
+const CUSTOM_VENUES_KEY = 'skate_custom_venues_v1';
+const CUSTOM_CONTENT_KEY = 'skate_custom_content_v1';
+const STORAGE_KEY = 'skate_training_records_v1';
+const VENUE_COLORS = {
+  'ban滑板场': '#ff5a3c',
+  'uride六里桥': '#00e0ff',
+  '首钢极限公园': '#a855f7',
+  '大兴woodward': '#c6ff00',
+  '楼下': '#ffd60a'
+};
+const COACH_COLORS = {
+  '自己练习': '#ffd60a'
+};
+// 为自定义教练/场地生成颜色
+let _customColorIdx = 0;
+const CUSTOM_COLOR_PALETTE = ['#ff5a3c','#00e0ff','#a855f7','#c6ff00','#ff3db2','#ffd60a','#4ade80','#f97316','#ec4899','#22d3ee'];
+function getColorFor(name, baseMap) {
+  if (baseMap[name]) return baseMap[name];
+  // 用名称哈希选色
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return CUSTOM_COLOR_PALETTE[Math.abs(hash) % CUSTOM_COLOR_PALETTE.length];
+}
+function venueColor(v) { return getColorFor(v, VENUE_COLORS); }
+function coachColor(c) { return getColorFor(c, COACH_COLORS); }
+
+/* ===== 自定义教练/场地存储 ===== */
+function loadCustomCoaches() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_COACHES_KEY) || '[]'); } catch (e) { return []; }
+}
+function saveCustomCoaches(arr) {
+  try { localStorage.setItem(CUSTOM_COACHES_KEY, JSON.stringify(arr)); return true; }
+  catch (e) { return false; }
+}
+function loadCustomVenues() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_VENUES_KEY) || '[]'); } catch (e) { return []; }
+}
+function saveCustomVenues(arr) {
+  try { localStorage.setItem(CUSTOM_VENUES_KEY, JSON.stringify(arr)); return true; }
+  catch (e) { return false; }
+}
+function loadCustomContent() {
+  try { return JSON.parse(localStorage.getItem(CUSTOM_CONTENT_KEY) || '[]'); } catch (e) { return []; }
+}
+function saveCustomContent(arr) {
+  try { localStorage.setItem(CUSTOM_CONTENT_KEY, JSON.stringify(arr)); return true; }
+  catch (e) { return false; }
+}
+
+let currentYear, currentMonth, selectedDate = null;
+let currentContentItems = []; // 当前编辑中的训练内容列表
+
+/* ===== 存储层：内存为源、localStorage 为备 =====
+   设计原则：
+   1. _memoryStore 是会话内唯一数据源（single source of truth）。
+   2. loadRecords() 始终从 _memoryStore 深拷贝读取，绝不直接读 localStorage，
+      避免读写不一致导致的整库覆盖。
+   3. saveRecords() 先更新 _memoryStore，再尝试持久化到 localStorage；
+      持久化失败不影响内存数据正确性。
+   4. 仅在 init() 时从 localStorage 加载一次到 _memoryStore。
+*/
+let _memoryStore = {};
+let _storageMode = 'memory'; // local | session | memory
+
+function detectStorage() {
+  try {
+    localStorage.setItem('__sk_test__', '1');
+    localStorage.removeItem('__sk_test__');
+    _storageMode = 'local';
+    return;
+  } catch (e) {}
+  try {
+    sessionStorage.setItem('__sk_test__', '1');
+    sessionStorage.removeItem('__sk_test__');
+    _storageMode = 'session';
+    return;
+  } catch (e) {}
+  _storageMode = 'memory';
+}
+
+/* 初始化时从持久化介质加载数据到内存（仅调用一次） */
+function bootstrapMemoryStore() {
+  try {
+    let raw = null;
+    if (_storageMode === 'local') raw = localStorage.getItem(STORAGE_KEY);
+    else if (_storageMode === 'session') raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') _memoryStore = parsed;
+    }
+  } catch (e) { console.warn('bootstrapMemoryStore 加载失败，使用空数据:', e); }
+}
+
+/* 始终从内存深拷贝读取，杜绝引用共享与陈旧数据 */
+function loadRecords() {
+  try {
+    return JSON.parse(JSON.stringify(_memoryStore));
+  } catch (e) { console.warn('loadRecords 深拷贝失败:', e); return {}; }
+}
+
+/* 先更新内存，再尝试持久化。返回持久化是否成功。 */
+function saveRecords(r) {
+  // 1. 更新内存（深拷贝，防止外部修改影响）
+  try {
+    _memoryStore = JSON.parse(JSON.stringify(r));
+  } catch (e) {
+    console.error('saveRecords 内存更新失败:', e);
+    return false;
+  }
+  // 2. 尝试持久化到 localStorage/sessionStorage
+  const data = JSON.stringify(_memoryStore);
+  let persisted = false;
+  try {
+    if (_storageMode === 'local') {
+      localStorage.setItem(STORAGE_KEY, data);
+      persisted = true;
+    } else if (_storageMode === 'session') {
+      sessionStorage.setItem(STORAGE_KEY, data);
+      persisted = true;
+    } else {
+      persisted = true; // 内存模式天然持久化在内存中
+    }
+  } catch (e) {
+    console.warn('saveRecords 持久化失败，降级为内存模式:', e);
+    _storageMode = 'memory';
+    persisted = false;
+  }
+  // 3. 校验：若持久化介质可读，比对内存与介质是否一致
+  if (persisted && _storageMode !== 'memory') {
+    try {
+      let raw = null;
+      if (_storageMode === 'local') raw = localStorage.getItem(STORAGE_KEY);
+      else if (_storageMode === 'session') raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw !== data) {
+        console.warn('saveRecords 校验：持久化介质与内存不一致，以内存为准');
+        // 介质数据不可信，不影响内存；标记为未持久化以便上层提示
+        persisted = false;
+      }
+    } catch (e) {
+      console.warn('saveRecords 校验读取失败:', e);
+    }
+  }
+  return persisted;
+}
+
+/* 清空所有训练记录（内存 + 持久化介质），需二次确认 */
+function clearAllData() {
+  _memoryStore = {};
+  try {
+    if (_storageMode === 'local') localStorage.removeItem(STORAGE_KEY);
+    else if (_storageMode === 'session') sessionStorage.removeItem(STORAGE_KEY);
+  } catch (e) { console.warn('clearAllData 清除持久化介质失败:', e); }
+  // 同步清空本地视频库
+  idbClearVideos();
+}
+
+/* =========================
+   本地视频库（IndexedDB）
+   视频仅保存在当前浏览器/设备，不上传服务器。
+   记录中以 videoId 引用，视频本体存于此库。
+   ========================= */
+const VIDEO_DB_NAME = 'skate_video_db';
+const VIDEO_DB_VERSION = 1;
+const VIDEO_STORE = 'videos';
+let _vdbPromise = null;
+const _videoSupported = ('indexedDB' in window);
+const _activeUrls = new Map(); // videoId -> objectURL，用于播放时创建/回收
+
+function openVideoDB() {
+  if (!_videoSupported) return Promise.reject(new Error('当前环境不支持 IndexedDB'));
+  if (_vdbPromise) return _vdbPromise;
+  _vdbPromise = new Promise((resolve, reject) => {
+    let req;
+    try { req = indexedDB.open(VIDEO_DB_NAME, VIDEO_DB_VERSION); }
+    catch (e) { reject(e); return; }
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(VIDEO_STORE)) db.createObjectStore(VIDEO_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error || new Error('打开视频库失败'));
+    req.onblocked = () => reject(new Error('视频库被其他标签页占用'));
+  });
+  return _vdbPromise;
+}
+/* 直接存储 File/Blob（现代浏览器原生支持），避免 ArrayBuffer 往返 */
+function idbPutVideo(id, file) {
+  return openVideoDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(VIDEO_STORE, 'readwrite');
+    tx.objectStore(VIDEO_STORE).put({
+      blob: file,
+      name: file.name || '',
+      size: file.size || 0,
+      type: normalizeVideoMime(file.type, file.name)
+    }, id);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error || new Error('写入失败'));
+    tx.onabort = () => reject(tx.error || new Error('写入被中止'));
+  }));
+}
+/* 归一化视频 MIME：部分安卓相册返回空或非 video/* 类型，
+   会导致 Blob URL 无类型、浏览器报「源不支持或无法识别」。 */
+function normalizeVideoMime(type, name) {
+  const t = (type || '').toLowerCase();
+  if (/^video\//.test(t)) return t;
+  const nm = (name || '').toLowerCase();
+  if (nm.endsWith('.webm')) return 'video/webm';
+  if (nm.endsWith('.mov')) return 'video/quicktime';
+  if (nm.endsWith('.3gp')) return 'video/3gpp';
+  if (nm.endsWith('.mkv')) return 'video/x-matroska';
+  return 'video/mp4';
+}
+function idbGetVideo(id) {
+  return openVideoDB().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(VIDEO_STORE, 'readonly');
+    const r = tx.objectStore(VIDEO_STORE).get(id);
+    r.onsuccess = () => {
+      const rec = r.result || null;
+      if (!rec) { resolve(null); return; }
+      // 兼容旧格式：直接是 Blob，或 { data: ArrayBuffer, type }
+      if (rec instanceof Blob) { resolve(ensureVideoBlob(rec, '')); return; }
+      if (rec.blob instanceof Blob) { resolve(ensureVideoBlob(rec.blob, rec.type || '')); return; }
+      if (rec.data instanceof ArrayBuffer) {
+        resolve(new Blob([rec.data], { type: normalizeVideoMime(rec.type, rec.name) }));
+        return;
+      }
+      resolve(null);
+    };
+    r.onerror = () => reject(r.error || new Error('读取失败'));
+  }));
+}
+/* 确保 Blob 带合法的 video/* MIME，否则用记录里的 type 重建 */
+function ensureVideoBlob(blob, storedType) {
+  const t = (blob.type || '').toLowerCase();
+  if (/^video\//.test(t)) return blob;
+  return new Blob([blob], { type: normalizeVideoMime(storedType, '') });
+}
+function idbDeleteVideo(id) {
+  if (!id || !_videoSupported) return Promise.resolve(false);
+  return openVideoDB().then(db => new Promise((resolve) => {
+    const tx = db.transaction(VIDEO_STORE, 'readwrite');
+    tx.objectStore(VIDEO_STORE).delete(id);
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => resolve(false);
+  })).catch(() => false);
+}
+function idbClearVideos() {
+  if (!_videoSupported) return Promise.resolve(false);
+  return openVideoDB().then(db => new Promise((resolve) => {
+    const tx = db.transaction(VIDEO_STORE, 'readwrite');
+    tx.objectStore(VIDEO_STORE).clear();
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => resolve(false);
+  })).catch(() => false);
+}
+function genVideoId() {
+  return 'v_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+function formatBytes(n) {
+  if (!n || n < 0) return '0 B';
+  if (n < 1024) return n + ' B';
+  if (n < 1048576) return (n / 1024).toFixed(1) + ' KB';
+  return (n / 1048576).toFixed(1) + ' MB';
+}
+/* 把旧数据（纯字符串 / 字符串数组 / 对象）统一为 { name, videoId, videoName, videoSize } */
+function normalizeContentItem(it) {
+  if (it == null) return { name: '', videoId: null, videoName: '', videoSize: 0 };
+  if (typeof it === 'string') return { name: it, videoId: null, videoName: '', videoSize: 0 };
+  if (typeof it === 'object') {
+    return {
+      name: it.name || '',
+      videoId: it.videoId || null,
+      videoName: it.videoName || '',
+      videoSize: it.videoSize || 0
+    };
+  }
+  return { name: String(it), videoId: null, videoName: '', videoSize: 0 };
+}
+/* 收集一条记录中引用的所有 videoId */
+function collectVideoIds(content) {
+  if (!Array.isArray(content)) return [];
+  return content.map(normalizeContentItem).map(x => x.videoId).filter(Boolean);
+}
+/* 生成内容的纯文本（用于汇总/PDF），视频仅以文字标记附加 */
+function contentTextOf(content) {
+  const arr = !content ? [] : (Array.isArray(content) ? content : [content]);
+  const items = arr.map(normalizeContentItem);
+  const names = items.map(x => x.name).map(s => (s || '').trim()).filter(Boolean);
+  const videoCount = items.filter(x => x.videoId).length;
+  let txt = names.join('、');
+  if (videoCount > 0) txt += (txt ? ' ' : '') + '（本机含 ' + videoCount + ' 个训练视频）';
+  return txt;
+}
+
+/* ===== 教练/场地/内容 自定义管理 ===== */
+
+function storageModeLabel() {
+  if (_storageMode === 'local') return '本地存储（刷新不丢失）';
+  if (_storageMode === 'session') return '会话存储（关闭标签页后丢失）';
+  return '临时存储（刷新页面后丢失，请及时导出 PDF 备份）';
+}
+function dateKey(y, m, d) {
+  return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+function isToday(y, m, d) {
+  const t = new Date();
+  return y === t.getFullYear() && m === t.getMonth() && d === t.getDate();
+}
+
+/* =========================
+   初始化年月选择器
+   ========================= */
+function initSelectors() {
+  const yearSel = document.getElementById('yearSelect');
+  const monthSel = document.getElementById('monthSelect');
+  const curY = new Date().getFullYear();
+  for (let y = curY - 3; y <= curY + 3; y++) {
+    const o = document.createElement('option');
+    o.value = y; o.textContent = y + '年';
+    yearSel.appendChild(o);
+  }
+  for (let m = 0; m < 12; m++) {
+    const o = document.createElement('option');
+    o.value = m; o.textContent = (m + 1) + '月';
+    monthSel.appendChild(o);
+  }
+  yearSel.addEventListener('change', () => { currentYear = +yearSel.value; renderAll(); });
+  monthSel.addEventListener('change', () => { currentMonth = +monthSel.value; renderAll(); });
+}
+function syncSelectors() {
+  document.getElementById('yearSelect').value = currentYear;
+  document.getElementById('monthSelect').value = currentMonth;
+}
+
+/* =========================
+   日历渲染
+   ========================= */
+function renderCalendar() {
+  document.getElementById('monthTitle').textContent = currentYear + ' 年 ' + (currentMonth + 1) + ' 月';
+  const cal = document.getElementById('calendar');
+  cal.innerHTML = '';
+  const records = loadRecords();
+  const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const daysInPrev = new Date(currentYear, currentMonth, 0).getDate();
+
+  for (let i = firstDay - 1; i >= 0; i--) {
+    cal.appendChild(buildCell(daysInPrev - i, currentMonth - 1, true));
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cal.appendChild(buildCell(d, currentMonth, false));
+  }
+  const total = firstDay + daysInMonth;
+  const fill = (7 - (total % 7)) % 7;
+  for (let d = 1; d <= fill; d++) {
+    cal.appendChild(buildCell(d, currentMonth + 1, true));
+  }
+}
+
+function buildCell(day, monthOffset, isOther) {
+  const cell = document.createElement('div');
+  let y = currentYear, m = monthOffset;
+  if (m < 0) { m = 11; y--; }
+  else if (m > 11) { m = 0; y++; }
+
+  cell.className = 'cal-cell';
+  if (isOther) cell.classList.add('other-month');
+  if (isToday(y, m, day)) cell.classList.add('today');
+
+  const key = dateKey(y, m, day);
+  const records = loadRecords();
+  const rec = records[key];
+
+  const num = document.createElement('div');
+  num.className = 'day-num';
+  num.textContent = day;
+  cell.appendChild(num);
+
+  if (rec) {
+    cell.classList.add('has-plan');
+    const coachTag = document.createElement('div');
+    coachTag.className = 'tag';
+    coachTag.style.background = coachColor(rec.coach);
+    coachTag.style.color = '#000';
+    coachTag.textContent = rec.coach;
+    cell.appendChild(coachTag);
+
+    const venueTag = document.createElement('div');
+    venueTag.className = 'tag';
+    venueTag.style.background = 'rgba(255,255,255,0.15)';
+    venueTag.textContent = rec.venue + ' ' + rec.duration + 'h';
+    cell.appendChild(venueTag);
+
+    // 有视频的日子加个标记
+    const vCount = collectVideoIds(rec.content).length;
+    if (vCount > 0) {
+      const vTag = document.createElement('div');
+      vTag.className = 'tag';
+      vTag.style.background = 'rgba(0,224,255,0.2)';
+      vTag.textContent = '📹 ' + vCount;
+      cell.appendChild(vTag);
+    }
+  }
+
+  if (selectedDate === key) cell.classList.add('selected');
+
+  cell.addEventListener('click', () => {
+    if (isOther) { currentYear = y; currentMonth = m; syncSelectors(); }
+    selectedDate = key;
+    renderAll();
+  });
+  return cell;
+}
+
+/* =========================
+   详情面板
+   ========================= */
+function renderDetail() {
+  const title = document.getElementById('detailDate');
+  const empty = document.getElementById('detailEmpty');
+  const form = document.getElementById('planForm');
+  const delBtn = document.getElementById('deleteBtn');
+
+  if (!selectedDate) {
+    title.textContent = '请选择日期';
+    empty.style.display = '';
+    form.style.display = 'none';
+    return;
+  }
+  const [y, m, d] = selectedDate.split('-');
+  title.textContent = y + ' 年 ' + (+m) + ' 月 ' + (+d) + ' 日 训练';
+  const records = loadRecords();
+  const rec = records[selectedDate];
+
+  empty.style.display = 'none';
+  form.style.display = '';
+  populateCoachSelect(rec ? rec.coach : '自己练习');
+  populateVenueSelect(rec ? rec.venue : '');
+  populateContentDatalist();
+  // 兼容旧数据：content 可能是字符串、字符串数组，或新格式对象数组
+  if (rec && rec.content) {
+    const arr = Array.isArray(rec.content) ? rec.content : [rec.content];
+    currentContentItems = arr.map(normalizeContentItem);
+  } else {
+    currentContentItems = [];
+  }
+  renderContentRows();
+  document.getElementById('fDuration').value = rec ? rec.duration : '';
+  delBtn.style.display = rec ? '' : 'none';
+}
+
+/* ===== 教练/场地下拉填充 ===== */
+function getAllCoaches() {
+  return COACHES.concat(loadCustomCoaches());
+}
+function getAllVenues() {
+  return VENUES.concat(loadCustomVenues());
+}
+function isCustomCoach(name) {
+  return !COACHES.includes(name) && loadCustomCoaches().includes(name);
+}
+function isCustomVenue(name) {
+  return !VENUES.includes(name) && loadCustomVenues().includes(name);
+}
+
+function populateCoachSelect(selected) {
+  const sel = document.getElementById('fCoach');
+  sel.innerHTML = '';
+  getAllCoaches().forEach(c => {
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c;
+    if (c === selected) o.selected = true;
+    sel.appendChild(o);
+  });
+  // 如果记录中的教练不在列表中（旧数据），补上
+  if (selected && !getAllCoaches().includes(selected)) {
+    const o = document.createElement('option');
+    o.value = selected; o.textContent = selected + ' (旧)';
+    o.selected = true;
+    sel.appendChild(o);
+  }
+  updateDelCoachBtn();
+}
+function populateVenueSelect(selected) {
+  const sel = document.getElementById('fVenue');
+  sel.innerHTML = '';
+  const blank = document.createElement('option');
+  blank.value = ''; blank.textContent = '请选择场地';
+  sel.appendChild(blank);
+  getAllVenues().forEach(v => {
+    const o = document.createElement('option');
+    o.value = v; o.textContent = v;
+    if (v === selected) o.selected = true;
+    sel.appendChild(o);
+  });
+  if (selected && !getAllVenues().includes(selected)) {
+    const o = document.createElement('option');
+    o.value = selected; o.textContent = selected + ' (旧)';
+    o.selected = true;
+    sel.appendChild(o);
+  }
+  updateDelVenueBtn();
+}
+
+function updateDelCoachBtn() {
+  const v = document.getElementById('fCoach').value;
+  const btn = document.getElementById('delCoachBtn');
+  btn.style.display = isCustomCoach(v) ? '' : 'none';
+}
+function updateDelVenueBtn() {
+  const v = document.getElementById('fVenue').value;
+  const btn = document.getElementById('delVenueBtn');
+  btn.style.display = isCustomVenue(v) ? '' : 'none';
+}
+
+/* ===== 教练/场地增删事件 ===== */
+function bindCustomItems() {
+  // 教练
+  document.getElementById('addCoachBtn').addEventListener('click', () => {
+    document.getElementById('coachAddBox').style.display = 'flex';
+    document.getElementById('newCoachInput').focus();
+  });
+  document.getElementById('cancelAddCoach').addEventListener('click', () => {
+    document.getElementById('coachAddBox').style.display = 'none';
+    document.getElementById('newCoachInput').value = '';
+  });
+  document.getElementById('confirmAddCoach').addEventListener('click', () => {
+    const name = document.getElementById('newCoachInput').value.trim();
+    if (!name) { flashToast('⚠️ 请输入教练名称'); return; }
+    if (COACHES.includes(name) || loadCustomCoaches().includes(name)) {
+      flashToast('⚠️ 该教练已存在'); return;
+    }
+    const list = loadCustomCoaches();
+    list.push(name);
+    saveCustomCoaches(list);
+    document.getElementById('newCoachInput').value = '';
+    document.getElementById('coachAddBox').style.display = 'none';
+    populateCoachSelect(name);
+    flashToast('✅ 教练已添加');
+  });
+  document.getElementById('delCoachBtn').addEventListener('click', () => {
+    const v = document.getElementById('fCoach').value;
+    if (!isCustomCoach(v)) return;
+    const list = loadCustomCoaches().filter(c => c !== v);
+    saveCustomCoaches(list);
+    populateCoachSelect('自己练习');
+    flashToast('🗑️ 已删除教练');
+  });
+  document.getElementById('fCoach').addEventListener('change', updateDelCoachBtn);
+
+  // 场地
+  document.getElementById('addVenueBtn').addEventListener('click', () => {
+    document.getElementById('venueAddBox').style.display = 'flex';
+    document.getElementById('newVenueInput').focus();
+  });
+  document.getElementById('cancelAddVenue').addEventListener('click', () => {
+    document.getElementById('venueAddBox').style.display = 'none';
+    document.getElementById('newVenueInput').value = '';
+  });
+  document.getElementById('confirmAddVenue').addEventListener('click', () => {
+    const name = document.getElementById('newVenueInput').value.trim();
+    if (!name) { flashToast('⚠️ 请输入场地名称'); return; }
+    if (VENUES.includes(name) || loadCustomVenues().includes(name)) {
+      flashToast('⚠️ 该场地已存在'); return;
+    }
+    const list = loadCustomVenues();
+    list.push(name);
+    saveCustomVenues(list);
+    document.getElementById('newVenueInput').value = '';
+    document.getElementById('venueAddBox').style.display = 'none';
+    populateVenueSelect(name);
+    flashToast('✅ 场地已添加');
+  });
+  document.getElementById('delVenueBtn').addEventListener('click', () => {
+    const v = document.getElementById('fVenue').value;
+    if (!isCustomVenue(v)) return;
+    const list = loadCustomVenues().filter(c => c !== v);
+    saveCustomVenues(list);
+    populateVenueSelect('');
+    flashToast('🗑️ 已删除场地');
+  });
+  document.getElementById('fVenue').addEventListener('change', updateDelVenueBtn);
+}
+
+/* ===== 训练内容（多项标签） ===== */
+function getAllContentPresets() {
+  return CONTENT_PRESETS.concat(loadCustomContent());
+}
+function isCustomContent(name) {
+  return !CONTENT_PRESETS.includes(name) && loadCustomContent().includes(name);
+}
+
+function populateContentDatalist() {
+  const dl = document.getElementById('contentPresetList');
+  dl.innerHTML = '';
+  getAllContentPresets().forEach(c => {
+    const o = document.createElement('option');
+    o.value = c;
+    dl.appendChild(o);
+  });
+}
+
+function renderContentRows() {
+  const box = document.getElementById('contentRows');
+  // 重建前回收所有 objectURL，避免泄漏（元素移除后播放也会停止）
+  revokeAllVideoUrls();
+  box.innerHTML = '';
+  // 确保至少一行
+  if (currentContentItems.length === 0) currentContentItems = [normalizeContentItem(null)];
+  currentContentItems.forEach((item, idx) => {
+    box.appendChild(buildContentItem(item, idx));
+  });
+}
+
+/* 构建单个"练习内容 + 视频"条目 */
+function buildContentItem(item, idx) {
+  item = normalizeContentItem(item);
+  const wrap = document.createElement('div');
+  wrap.className = 'content-item';
+
+  // 第一行：内容输入 + 加行/删行
+  const row = document.createElement('div');
+  row.className = 'content-row';
+
+  const input = document.createElement('input');
+  input.className = 'form-input';
+  input.type = 'text';
+  input.placeholder = '输入或选择练习内容，如 Ollie';
+  input.value = item.name || '';
+  input.setAttribute('list', 'contentPresetList');
+  input.dataset.idx = idx;
+  input.addEventListener('input', () => { currentContentItems[idx].name = input.value; });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); addContentRow(idx + 1); }
+  });
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'row-btn row-add';
+  addBtn.textContent = '+';
+  addBtn.title = '在下方添加一行';
+  addBtn.addEventListener('click', () => addContentRow(idx + 1));
+
+  row.appendChild(input);
+  row.appendChild(addBtn);
+
+  if (currentContentItems.length > 1) {
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'row-btn row-del';
+    delBtn.textContent = '×';
+    delBtn.title = '删除此行';
+    delBtn.addEventListener('click', () => removeContentRow(idx));
+    row.appendChild(delBtn);
+  }
+  wrap.appendChild(row);
+
+  // 第二行：视频
+  const vline = document.createElement('div');
+  vline.className = 'video-line';
+
+  if (item.videoId) {
+    const chip = document.createElement('span');
+    chip.className = 'video-chip';
+    chip.textContent = '📹 已存本机' + (item.videoSize ? ' · ' + formatBytes(item.videoSize) : '');
+    vline.appendChild(chip);
+
+    const playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'video-btn';
+    playBtn.textContent = '▶ 播放';
+    playBtn.addEventListener('click', () => togglePlay(wrap, idx, playBtn));
+    vline.appendChild(playBtn);
+
+    const rmBtn = document.createElement('button');
+    rmBtn.type = 'button';
+    rmBtn.className = 'video-btn remove';
+    rmBtn.textContent = '✕ 移除';
+    rmBtn.addEventListener('click', () => removeVideo(idx));
+    vline.appendChild(rmBtn);
+
+    // 诊断信息行（有视频时也要显示，用于播放报错定位）
+    const diag = document.createElement('div');
+    diag.className = 'video-diag';
+    diag.id = 'diag-' + idx;
+    diag.textContent = '点「▶ 播放」可查看播放结果';
+    vline.appendChild(diag);
+  } else {
+    // label + 隐藏 file input：点击 label 直接唤起相册
+    const upLabel = document.createElement('label');
+    upLabel.className = 'video-btn upload';
+    upLabel.textContent = '📹 从相册选择视频';
+    if (!_videoSupported) {
+      upLabel.className = 'video-btn upload disabled';
+      upLabel.textContent = '📹 当前环境不支持本地视频';
+    } else {
+      const fi = document.createElement('input');
+      fi.type = 'file';
+      fi.accept = 'video/*';
+      fi.className = 'video-file-input';
+      fi.addEventListener('change', () => {
+        const f = fi.files && fi.files[0];
+        fi.value = ''; // 允许重复选择同一文件
+        if (f) savePickedVideo(idx, f);
+      });
+      upLabel.appendChild(fi);
+    }
+    vline.appendChild(upLabel);
+
+    // 诊断信息行：显示文件名/类型/大小，便于定位问题
+    const diag = document.createElement('div');
+    diag.className = 'video-diag';
+    diag.id = 'diag-' + idx;
+    diag.textContent = '提示：若选后无法播放，此行会显示编码与错误码';
+    vline.appendChild(diag);
+  }
+  wrap.appendChild(vline);
+
+  return wrap;
+}
+
+/* 回收所有 objectURL */
+function revokeAllVideoUrls() {
+  _activeUrls.forEach(url => { try { URL.revokeObjectURL(url); } catch (e) {} });
+  _activeUrls.clear();
+}
+
+/* 更新某行的诊断文本 */
+function setDiag(idx, text) {
+  const el = document.getElementById('diag-' + idx);
+  if (el) el.textContent = text;
+}
+
+/* 解析 MP4 的 stsd，识别视频编码（avc1=H.264, hvc1/hev1=HEVC, mp4v 等） */
+function scanCodec(buf) {
+  try {
+    const view = new DataView(buf);
+    let offset = 0;
+    while (offset + 8 <= buf.byteLength) {
+      const size = view.getUint32(offset);
+      if (size <= 0 || offset + size > buf.byteLength) break;
+      const type = String.fromCharCode(view.getUint8(offset+4), view.getUint8(offset+5), view.getUint8(offset+6), view.getUint8(offset+7));
+      if (type === 'moov') return findCodecInMoov(buf, offset + 8, offset + size);
+      offset += size;
+    }
+  } catch (e) {}
+  return 'unknown';
+}
+function findCodecInMoov(buf, start, end) {
+  const view = new DataView(buf);
+  let offset = start;
+  while (offset + 8 <= end && offset + 8 <= buf.byteLength) {
+    const size = view.getUint32(offset);
+    if (size <= 0) break;
+    const type = String.fromCharCode(view.getUint8(offset+4), view.getUint8(offset+5), view.getUint8(offset+6), view.getUint8(offset+7));
+    if (type === 'stsd') {
+      const entryCount = view.getUint32(offset + 12);
+      if (entryCount > 0) {
+        const e = offset + 16;
+        return String.fromCharCode(view.getUint8(e+4), view.getUint8(e+5), view.getUint8(e+6), view.getUint8(e+7));
+      }
+    }
+    if (['moov','trak','mdia','minf','stbl'].includes(type)) {
+      const inner = findCodecInMoov(buf, offset + 8, offset + size);
+      if (inner !== 'unknown') return inner;
+    }
+    offset += size;
+  }
+  return 'unknown';
+}
+async function detectMp4Codec(file) {
+  try {
+    let buf = await file.slice(0, Math.min(524288, file.size)).arrayBuffer();
+    let codec = scanCodec(buf);
+    if (codec !== 'unknown') return codec;
+    if (file.size > 524288) {
+      const tailStart = Math.max(0, file.size - 1048576);
+      buf = await file.slice(tailStart).arrayBuffer();
+      codec = scanCodec(buf);
+    }
+    return codec;
+  } catch (e) { return 'unknown'; }
+}
+
+/* 保存所选视频到本地库，并绑定到指定内容行 */
+async function savePickedVideo(idx, file) {
+  if (!currentContentItems[idx]) return;
+  setDiag(idx, '⏳ 正在读取编码信息…');
+  const codec = await detectMp4Codec(file);
+  setDiag(idx, '文件名：' + file.name + ' ｜ 类型：' + (file.type || '空') + ' ｜ 编码：' + codec + ' ｜ 大小：' + formatBytes(file.size));
+  try {
+    const id = genVideoId();
+    await idbPutVideo(id, file);
+    currentContentItems[idx].videoId = id;
+    currentContentItems[idx].videoName = file.name || '';
+    currentContentItems[idx].videoSize = file.size || 0;
+    // 记录编码，便于后续诊断
+    currentContentItems[idx].videoCodec = codec;
+    renderContentRows();
+    if (codec === 'hvc1' || codec === 'hev1') {
+      flashToast('⚠️ 已保存，但这是 HEVC 编码，部分浏览器无法播放');
+    } else {
+      flashToast('✅ 视频已保存（' + formatBytes(file.size) + '，编码 ' + codec + '）');
+    }
+  } catch (e) {
+    const msg = (e && e.name === 'QuotaExceededError') ? '本机存储空间不足' : ('保存失败：' + (e.message || '未知错误'));
+    flashToast('❌ ' + msg);
+    setDiag(idx, '❌ ' + msg);
+  }
+}
+
+/* 移除某行的视频（保存时统一清理本体） */
+function removeVideo(idx) {
+  const it = currentContentItems[idx];
+  if (!it || !it.videoId) return;
+  it.videoId = null; it.videoName = ''; it.videoSize = 0;
+  renderContentRows();
+  flashToast('已移除视频（保存后生效）');
+}
+
+/* 播放/收起内嵌视频 */
+async function togglePlay(wrapEl, idx, btn) {
+  if (wrapEl.querySelector('.video-player')) {
+    // 收起
+    const p = wrapEl.querySelector('.video-player');
+    const v = p.querySelector('video');
+    if (v) { try { v.pause(); } catch (e) {} }
+    const url = p.dataset.url;
+    if (url) { try { URL.revokeObjectURL(url); } catch (e) {} _activeUrls.delete(p.dataset.videoId); }
+    p.remove();
+    btn.textContent = '▶ 播放';
+    return;
+  }
+  const item = normalizeContentItem(currentContentItems[idx]);
+  if (!item.videoId) return;
+  try {
+    const blob = await idbGetVideo(item.videoId);
+    if (!blob) { flashToast('⚠️ 未找到视频（可能已被清理）'); return; }
+    const url = URL.createObjectURL(blob);
+    _activeUrls.set(item.videoId, url);
+    const player = document.createElement('div');
+    player.className = 'video-player';
+    player.dataset.videoId = item.videoId;
+    player.dataset.url = url;
+    const v = document.createElement('video');
+    v.className = 'content-video';
+    v.controls = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', 'playsinline');
+    v.setAttribute('webkit-playsinline', 'webkit-playsinline');
+    v.preload = 'auto';
+    v.src = url;
+    player.appendChild(v);
+    wrapEl.appendChild(player);
+    btn.textContent = '⏸ 收起';
+    v.load();
+    let retried = false;
+    v.addEventListener('error', () => {
+      const err = v.error || {};
+      let msg = '视频无法播放';
+      switch (err.code) {
+        case 1: msg = '加载被中止'; break;
+        case 2: msg = '网络错误'; break;
+        case 3: msg = '解码失败（编码不支持）'; break;
+        case 4: msg = '源不支持或无法识别'; break;
+      }
+      // 兜底：错误码 4 时，强制按 video/mp4 重新包装再试一次
+      if (err.code === 4 && !retried) {
+        retried = true;
+        try {
+          const fixed = new Blob([blob], { type: 'video/mp4' });
+          const oldUrl = player.dataset.url;
+          const u2 = URL.createObjectURL(fixed);
+          _activeUrls.set(item.videoId, u2);
+          player.dataset.url = u2;
+          if (oldUrl) { try { URL.revokeObjectURL(oldUrl); } catch (e) {} }
+          setDiag(idx, '⚠️ 首次失败（源不支持），已按 video/mp4 兜底重试…');
+          v.src = u2;
+          v.load();
+          return;
+        } catch (e) {}
+      }
+      flashToast('❌ ' + msg);
+      setDiag(idx, '❌ 播放失败：' + msg + ' ｜ 错误码 ' + (err.code || '?') + ' ｜ MIME ' + (blob.type || '空') + ' ｜ 编码 ' + (item.videoCodec || '未知') + ' ｜ 大小 ' + formatBytes(blob.size));
+    });
+    v.addEventListener('canplay', () => { setDiag(idx, '✅ 可正常播放 ｜ MIME ' + (blob.type || '空') + ' ｜ 编码 ' + (item.videoCodec || '未知')); });
+    setTimeout(() => {
+      if (v.readyState < 2) {
+        setDiag(idx, '⚠️ 加载超时（readyState=' + v.readyState + '）｜ MIME ' + (blob.type || '空') + ' ｜ 编码 ' + (item.videoCodec || '未知'));
+      }
+    }, 10000);
+  } catch (e) {
+    flashToast('❌ 视频读取失败');
+    setDiag(idx, '❌ 读取失败：' + (e.message || '未知错误'));
+  }
+}
+
+function addContentRow(atIdx) {
+  currentContentItems.splice(atIdx, 0, normalizeContentItem(null));
+  renderContentRows();
+  // 聚焦到新行
+  setTimeout(() => {
+    const rows = document.querySelectorAll('#contentRows .content-item .content-row input');
+    if (rows[atIdx]) rows[atIdx].focus();
+  }, 0);
+}
+
+function removeContentRow(idx) {
+  currentContentItems.splice(idx, 1);
+  if (currentContentItems.length === 0) currentContentItems = [normalizeContentItem(null)];
+  renderContentRows();
+}
+
+function bindContentItems() {
+  // 管理预设内容
+  document.getElementById('addContentPresetBtn').addEventListener('click', () => {
+    const box = document.getElementById('contentPresetBox');
+    const isOpen = box.style.display === 'flex';
+    box.style.display = isOpen ? 'none' : 'flex';
+    if (!isOpen) {
+      document.getElementById('newContentInput').focus();
+      renderPresetManageList();
+    }
+  });
+  document.getElementById('cancelAddContent').addEventListener('click', () => {
+    document.getElementById('contentPresetBox').style.display = 'none';
+    document.getElementById('newContentInput').value = '';
+  });
+  document.getElementById('confirmAddContent').addEventListener('click', () => {
+    const name = document.getElementById('newContentInput').value.trim();
+    if (!name) { flashToast('⚠️ 请输入练习内容'); return; }
+    if (CONTENT_PRESETS.includes(name) || loadCustomContent().includes(name)) {
+      flashToast('⚠️ 该内容已存在'); return;
+    }
+    const list = loadCustomContent();
+    list.push(name);
+    saveCustomContent(list);
+    document.getElementById('newContentInput').value = '';
+    populateContentDatalist();
+    renderPresetManageList();
+    flashToast('✅ 预设内容已添加');
+  });
+}
+
+// 渲染预设管理列表（可删除自定义预设）
+function renderPresetManageList() {
+  let box = document.getElementById('presetManageList');
+  if (!box) {
+    box = document.createElement('div');
+    box.id = 'presetManageList';
+    box.style.marginTop = '8px';
+    document.getElementById('contentPresetBox').parentElement.appendChild(box);
+  }
+  const customs = loadCustomContent();
+  box.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px;">自定义预设（点击×删除）：</div>';
+  if (customs.length === 0) {
+    box.innerHTML += '<div style="font-size:11px;color:rgba(255,255,255,0.3);">暂无自定义预设</div>';
+    return;
+  }
+  customs.forEach(c => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:12px;';
+    row.innerHTML = '<span>' + c + '</span>';
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'row-btn row-del';
+    del.style.width = '22px';
+    del.style.height = '22px';
+    del.style.fontSize = '12px';
+    del.textContent = '×';
+    del.addEventListener('click', () => {
+      const list = loadCustomContent().filter(x => x !== c);
+      saveCustomContent(list);
+      populateContentDatalist();
+      renderPresetManageList();
+      flashToast('🗑️ 已删除预设');
+    });
+    row.appendChild(del);
+    box.appendChild(row);
+  });
+}
+
+function bindForm() {
+  document.getElementById('saveBtn').addEventListener('click', () => {
+    try {
+      if (!selectedDate) { flashToast('⚠️ 请先选择日期'); return; }
+      const coach = document.getElementById('fCoach').value;
+      const venue = document.getElementById('fVenue').value;
+      // 归一化内容项：名称去空格、保留视频引用；过滤空项
+      const content = currentContentItems
+        .map(normalizeContentItem)
+        .map(it => ({
+          name: (it.name || '').trim(),
+          videoId: it.videoId || null,
+          videoName: it.videoName || '',
+          videoSize: it.videoSize || 0
+        }))
+        .filter(it => it.name.length > 0 || it.videoId);
+      const duration = parseFloat(document.getElementById('fDuration').value);
+
+      if (!venue) { flashToast('⚠️ 请选择场地'); return; }
+      if (!duration || duration <= 0) { flashToast('⚠️ 请填写有效的训练时长'); return; }
+
+      const records = loadRecords();
+      const prev = records[selectedDate];
+      // 联动清理：本次被移除的视频，从本地库删除
+      const newIds = new Set(content.map(it => it.videoId).filter(Boolean));
+      collectVideoIds(prev && prev.content).forEach(id => { if (!newIds.has(id)) idbDeleteVideo(id); });
+
+      records[selectedDate] = { coach, venue, content, duration };
+      const persisted = saveRecords(records);
+
+      renderAll();
+      const [yy, mm, dd] = selectedDate.split('-');
+      const dateLabel = yy + '年' + (+mm) + '月' + (+dd) + '日';
+      if (persisted) {
+        flashToast('✅ ' + dateLabel + ' 训练记录已保存');
+      } else {
+        flashToast('⚠️ ' + dateLabel + ' 已保存（当前环境不支持持久化，刷新会丢失，建议导出 PDF 备份）');
+      }
+    } catch (err) {
+      console.error('保存失败:', err);
+      flashToast('❌ 保存出错: ' + (err.message || '未知错误'));
+    }
+  });
+
+  let deleteConfirmTimer = null;
+  document.getElementById('deleteBtn').addEventListener('click', () => {
+    try {
+      if (!selectedDate) return;
+      const btn = document.getElementById('deleteBtn');
+      if (btn.dataset.confirming === '1') {
+        // 二次确认，执行删除
+        clearTimeout(deleteConfirmTimer);
+        btn.dataset.confirming = '0';
+        btn.textContent = '删除';
+        const records = loadRecords();
+        // 同步清理该日引用的本地视频
+        collectVideoIds(records[selectedDate] && records[selectedDate].content).forEach(id => idbDeleteVideo(id));
+        delete records[selectedDate];
+        saveRecords(records);
+        renderAll();
+        flashToast('🗑️ 已删除');
+      } else {
+        // 第一次点击，进入确认状态
+        btn.dataset.confirming = '1';
+        btn.textContent = '再次点击确认删除';
+        deleteConfirmTimer = setTimeout(() => {
+          btn.dataset.confirming = '0';
+          btn.textContent = '删除';
+        }, 3000);
+      }
+    } catch (err) {
+      console.error('删除失败:', err);
+      flashToast('❌ 删除出错');
+    }
+  });
+}
+
+/* =========================
+   月度总结
+   ========================= */
+function renderSummary() {
+  document.getElementById('summaryTitle').textContent = currentYear + '年' + (currentMonth + 1) + '月 训练总结';
+  const records = loadRecords();
+  const prefix = currentYear + '-' + String(currentMonth + 1).padStart(2, '0');
+  const monthRecs = [];
+  for (const k in records) {
+    if (k.startsWith(prefix)) monthRecs.push({ date: k, ...records[k] });
+  }
+  monthRecs.sort((a, b) => a.date.localeCompare(b.date));
+
+  const totalHours = monthRecs.reduce((s, r) => s + (r.duration || 0), 0);
+  const sessions = monthRecs.length;
+
+  const byVenue = {};
+  const byCoach = {};
+  monthRecs.forEach(r => {
+    byVenue[r.venue] = (byVenue[r.venue] || 0) + (r.duration || 0);
+    byCoach[r.coach] = (byCoach[r.coach] || 0) + (r.duration || 0);
+  });
+
+  const selfHours = byCoach['自己练习'] || 0;
+  const maxVenue = Math.max(1, ...Object.values(byVenue));
+  const maxCoach = Math.max(1, ...Object.values(byCoach));
+
+  let html = '';
+  html += '<div class="summary-grid">';
+  html += '<div class="stat-card"><div class="stat-value c-accent">' + totalHours.toFixed(1) + '</div><div class="stat-label">总时长(小时)</div></div>';
+  html += '<div class="stat-card"><div class="stat-value c-neon">' + sessions + '</div><div class="stat-label">训练次数</div></div>';
+  html += '<div class="stat-card"><div class="stat-value c-yellow">' + selfHours.toFixed(1) + '</div><div class="stat-label">自己练习(h)</div></div>';
+  html += '</div>';
+
+  html += '<div class="section-label">按场地统计</div>';
+  if (Object.keys(byVenue).length === 0) {
+    html += '<div style="font-size:12px;color:rgba(255,255,255,0.3);">暂无记录</div>';
+  } else {
+    Object.entries(byVenue).sort((a,b)=>b[1]-a[1]).forEach(([v, h]) => {
+      const color = venueColor(v);
+      html += '<div class="bar-row"><div class="bar-row-head"><span>' + v + '</span><span class="bar-row-val">' + h.toFixed(1) + ' h</span></div><div class="bar"><div class="bar-fill" style="width:' + (h/maxVenue*100).toFixed(0) + '%;background:' + color + '"></div></div></div>';
+    });
+  }
+
+  html += '<div class="section-label">按教练统计</div>';
+  if (Object.keys(byCoach).length === 0) {
+    html += '<div style="font-size:12px;color:rgba(255,255,255,0.3);">暂无记录</div>';
+  } else {
+    Object.entries(byCoach).sort((a,b)=>b[1]-a[1]).forEach(([c, h]) => {
+      const color = coachColor(c);
+      html += '<div class="bar-row"><div class="bar-row-head"><span>' + c + '</span><span class="bar-row-val">' + h.toFixed(1) + ' h</span></div><div class="bar"><div class="bar-fill" style="width:' + (h/maxCoach*100).toFixed(0) + '%;background:' + color + '"></div></div></div>';
+    });
+  }
+
+  html += '<div class="section-label">训练内容明细</div>';
+  if (monthRecs.length === 0) {
+    html += '<div style="font-size:12px;color:rgba(255,255,255,0.3);">本月还没有训练记录，去日历里添加吧！</div>';
+  } else {
+    html += '<div class="detail-list">';
+    monthRecs.forEach(r => {
+      const day = r.date.slice(8);
+      const contentText = contentTextOf(r.content);
+      html += '<div class="detail-item"><div class="detail-head"><span class="detail-day">' + (+day) + '日</span><span class="detail-meta">' + r.coach + ' · ' + r.venue + '</span></div><div class="detail-content">' + (contentText || '（未填写内容）') + '</div><div class="detail-duration">' + r.duration + ' 小时</div></div>';
+    });
+    html += '</div>';
+  }
+
+  document.getElementById('summaryBody').innerHTML = html;
+}
+
+/* =========================
+   PDF 导出
+   ========================= */
+async function exportPDF() {
+  const title = currentYear + '年' + (currentMonth + 1) + '月 滑板训练总结';
+  const summary = document.getElementById('summaryBody');
+  if (!summary) return;
+  flashToast('⏳ 正在生成 PDF...');
+  try {
+    const canvas = await html2canvas(summary, {
+      backgroundColor: '#1a1a2e', scale: 2, useCORS: true
+    });
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const margin = 10;
+    const imgW = pageW - margin * 2;
+    const imgH = (canvas.height * imgW) / canvas.width;
+    pdf.setFontSize(16);
+    pdf.text(title, pageW / 2, 15, { align: 'center' });
+    pdf.addImage(imgData, 'PNG', margin, 22, imgW, imgH);
+    // 视频为本地数据，无法嵌入 PDF，仅在明细中标注数量
+    const pageH = pdf.internal.pageSize.getHeight();
+    const noteY = Math.min(22 + imgH + 6, pageH - 8);
+    pdf.setFontSize(9);
+    pdf.setTextColor(140, 140, 140);
+    pdf.text('注：训练视频保存在本地浏览器，PDF 仅标注数量，不含视频文件。', pageW / 2, noteY, { align: 'center' });
+    pdf.save('滑板训练_' + currentYear + '-' + String(currentMonth+1).padStart(2,'0') + '.pdf');
+    flashToast('✅ PDF 导出成功');
+  } catch (e) {
+    console.error(e);
+    flashToast('❌ 导出失败，请重试');
+  }
+}
+
+/* =========================
+   工具
+   ========================= */
+function flashToast(msg) {
+  let t = document.getElementById('toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'toast';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => { t.style.opacity = '0'; }, 2000);
+}
+
+/* =========================
+   主渲染
+   ========================= */
+function renderAll() {
+  renderCalendar();
+  renderDetail();
+  renderSummary();
+  const ss = document.getElementById('storageStatus');
+  if (ss) {
+    const count = Object.keys(loadRecords()).length;
+    ss.textContent = storageModeLabel() + ' · 已存 ' + count + ' 天';
+  }
+}
+
+/* =========================
+   启动
+   ========================= */
+function init() {
+  detectStorage();
+  bootstrapMemoryStore(); // 从持久化介质加载历史数据到内存（仅一次）
+  const now = new Date();
+  currentYear = now.getFullYear();
+  currentMonth = now.getMonth();
+  initSelectors();
+  syncSelectors();
+  bindForm();
+  bindCustomItems();
+  bindContentItems();
+
+  document.getElementById('prevMonth').addEventListener('click', () => {
+    currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    syncSelectors(); renderAll();
+  });
+  document.getElementById('nextMonth').addEventListener('click', () => {
+    currentMonth++; if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+    syncSelectors(); renderAll();
+  });
+  document.getElementById('todayBtn').addEventListener('click', () => {
+    const now = new Date();
+    currentYear = now.getFullYear(); currentMonth = now.getMonth();
+    syncSelectors(); renderAll();
+  });
+  document.getElementById('exportBtn').addEventListener('click', exportPDF);
+
+  // 清空数据（二次确认）
+  let clearConfirmTimer = null;
+  document.getElementById('clearDataBtn').addEventListener('click', () => {
+    const btn = document.getElementById('clearDataBtn');
+    if (btn.dataset.confirming === '1') {
+      clearTimeout(clearConfirmTimer);
+      btn.dataset.confirming = '0';
+      btn.textContent = '🗑️ 清空数据';
+      btn.style.color = '#ff6b6b';
+      clearAllData();
+      selectedDate = null;
+      renderAll();
+      flashToast('🗑️ 所有训练记录已清空');
+    } else {
+      btn.dataset.confirming = '1';
+      btn.textContent = '再次点击确认清空';
+      btn.style.color = '#ff3333';
+      clearConfirmTimer = setTimeout(() => {
+        btn.dataset.confirming = '0';
+        btn.textContent = '🗑️ 清空数据';
+        btn.style.color = '#ff6b6b';
+      }, 3000);
+    }
+  });
+
+  renderAll();
+}
+init();
+</script>
+</body>
+</html>
