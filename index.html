@@ -4,8 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>滑板训练日历</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
@@ -111,12 +109,45 @@
   .content-tag .tag-remove:hover { background: rgba(255,61,61,0.5); color: #fff; }
   .content-row { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
   .content-row .form-input { flex: 1; }
+  /* 自定义下拉：可点开选择，也可直接输入 */
+  .combo { position: relative; flex: 1; min-width: 0; }
+  .combo-input { width: 100%; padding-right: 28px; }
+  .combo-arrow {
+    position: absolute; right: 4px; top: 50%; transform: translateY(-50%);
+    width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+    background: none; border: none; cursor: pointer;
+  }
+  /* 细三角：与场地下拉（原生 select）的箭头视觉一致 */
+  .combo-caret {
+    width: 0; height: 0;
+    border-left: 5px solid transparent; border-right: 5px solid transparent;
+    border-top: 6px solid rgba(255,255,255,0.55);
+  }
+  .combo-list {
+    position: absolute; left: 0; right: 0; top: calc(100% + 2px);
+    background: #1a1a2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+    max-height: 180px; overflow-y: auto; z-index: 30; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  }
+  .combo-option { padding: 8px 12px; font-size: 14px; cursor: pointer; color: #fff; }
+  .combo-option:hover { background: rgba(0,224,255,0.15); }
+  .combo-empty { padding: 8px 12px; font-size: 12px; color: rgba(255,255,255,0.45); }
+
+  /* 训练内容检索结果 */
+  .search-result { margin-top: 12px; }
+  .search-stat { font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 8px; line-height: 1.5; }
+  .search-item {
+    background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 10px; padding: 10px; margin-bottom: 8px; font-size: 12px;
+  }
+  .search-item-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .search-date { font-weight: 700; }
+  .search-meta { color: rgba(255,255,255,0.6); }
+  .search-video-btns { display: flex; gap: 6px; flex-wrap: wrap; }
   .content-row .row-btn {
     width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
     border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; border: none; flex-shrink: 0;
   }
-  .row-add { background: linear-gradient(135deg, #ff5a3c, #ff3db2); color: #fff; }
-  .row-add:hover { opacity: 0.85; }
   .row-del { background: rgba(255,61,61,0.15); color: #ff6b6b; }
   .row-del:hover { background: rgba(255,61,61,0.3); }
 
@@ -137,6 +168,34 @@
   .video-diag { width: 100%; font-size: 10px; color: rgba(255,255,255,0.4); line-height: 1.4; word-break: break-all; }
   .video-player { margin-top: 6px; }
   .content-video { width: 100%; border-radius: 8px; background: #000; display: block; }
+  .video-btn.in-lib { color: #ffd60a; border-color: rgba(255,214,10,0.45); background: rgba(255,214,10,0.12); }
+
+  /* 招式库弹层 */
+  .overlay {
+    position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.62);
+    backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .overlay-panel {
+    width: 100%; max-width: 720px; max-height: 86vh; overflow-y: auto; padding: 20px;
+    border-radius: 16px; border: 1px solid rgba(255,255,255,0.12);
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+  }
+  .overlay-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+  .trick-group { margin-bottom: 12px; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; overflow: hidden; }
+  .trick-group-head {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 10px 12px; cursor: pointer; font-size: 14px; font-weight: 700;
+    background: linear-gradient(135deg, rgba(255,90,60,0.16), rgba(168,85,247,0.14));
+  }
+  .trick-group-count { font-size: 11px; font-weight: 400; color: rgba(255,255,255,0.7); }
+  .trick-group-body { display: none; padding: 8px 12px; }
+  .trick-group.open .trick-group-body { display: block; }
+  .trick-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); font-size: 12px;
+  }
+  .trick-date { font-weight: 700; }
+  .trick-row-btns { display: flex; gap: 6px; flex-wrap: wrap; }
 
   /* Buttons */
   .btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; transition: all 0.2s; cursor: pointer; border: none; font-size: 14px; }
@@ -218,7 +277,7 @@
       <select id="yearSelect" class="form-select" style="width:auto;font-size:13px;"></select>
       <select id="monthSelect" class="form-select" style="width:auto;font-size:13px;"></select>
       <button id="todayBtn" class="btn btn-ghost" style="font-size:13px;">今天</button>
-      <button id="exportBtn" class="btn btn-primary" style="font-size:13px;">📄 导出 PDF</button>
+      <button id="trickLibBtn" class="btn btn-ghost" style="font-size:13px;">🥇 招式库</button>
       <button id="clearDataBtn" class="btn btn-ghost" style="font-size:13px;color:#ff6b6b;">🗑️ 清空数据</button>
     </div>
   </header>
@@ -280,17 +339,8 @@
             <button type="button" id="delVenueBtn" class="btn-link" style="display:none;">删除此自定义场地</button>
           </div>
           <div class="form-group">
-            <label class="form-label">训练内容 <span class="form-hint">（点＋添加多项，可输入或选预设）</span></label>
-            <datalist id="contentPresetList"></datalist>
+            <label class="form-label">训练内容 <span class="form-hint">（点开选择，或直接输入新内容）</span></label>
             <div id="contentRows"></div>
-            <div class="select-row" style="margin-top:8px;">
-              <button type="button" id="addContentPresetBtn" class="btn btn-ghost" style="padding:6px 12px;font-size:12px;">＋ 管理预设内容</button>
-            </div>
-            <div id="contentPresetBox" class="add-box" style="display:none;">
-              <input id="newContentInput" class="form-input" type="text" placeholder="输入练习内容，如 Ollie、碗池滑行">
-              <button type="button" id="confirmAddContent" class="btn btn-primary" style="padding:8px 12px;font-size:12px;">保存</button>
-              <button type="button" id="cancelAddContent" class="btn btn-ghost" style="padding:8px 12px;font-size:12px;">取消</button>
-            </div>
           </div>
           <div class="form-group">
             <label class="form-label">训练时长（小时）</label>
@@ -303,6 +353,17 @@
         </form>
       </div>
 
+      <!-- 训练内容检索 -->
+      <div class="glass">
+        <h3 class="panel-title">🔍 训练内容检索</h3>
+        <div class="combo">
+          <input id="searchInput" class="form-input combo-input" type="text" placeholder="输入或选择要检索的训练内容" autocomplete="off">
+          <button type="button" id="searchArrow" class="combo-arrow"><span class="combo-caret"></span></button>
+          <div id="searchList" class="combo-list" style="display:none;"></div>
+        </div>
+        <div id="searchResult" class="search-result"></div>
+      </div>
+
       <!-- Monthly Summary -->
       <div class="glass">
         <h3 class="panel-title">📊 <span id="summaryTitle">本月训练总结</span></h3>
@@ -312,6 +373,22 @@
   </div>
 
   <footer class="footer">数据与视频均保存在本地浏览器 · 不会上传到服务器 · <span id="storageStatus"></span></footer>
+</div>
+
+<!-- 招式库弹层 -->
+<div id="trickOverlay" class="overlay" style="display:none;">
+  <div class="overlay-panel">
+    <div class="overlay-head">
+      <h3 class="panel-title" style="margin:0;">🥇 招式库</h3>
+      <button type="button" id="trickCloseBtn" class="btn btn-ghost" style="font-size:13px;">✕ 关闭</button>
+    </div>
+    <div class="combo" style="margin-bottom:12px;">
+      <input id="trickSearchInput" class="form-input combo-input" type="text" placeholder="输入或选择要检索的招式" autocomplete="off">
+      <button type="button" id="trickSearchArrow" class="combo-arrow"><span class="combo-caret"></span></button>
+      <div id="trickSearchList" class="combo-list" style="display:none;"></div>
+    </div>
+    <div id="trickBody" class="trick-body"></div>
+  </div>
 </div>
 
 <script>
@@ -332,6 +409,7 @@ const CUSTOM_COACHES_KEY = 'skate_custom_coaches_v1';
 const CUSTOM_VENUES_KEY = 'skate_custom_venues_v1';
 const CUSTOM_CONTENT_KEY = 'skate_custom_content_v1';
 const STORAGE_KEY = 'skate_training_records_v1';
+const TRICK_LIB_KEY = 'skate_trick_library_v1';
 const VENUE_COLORS = {
   'ban滑板场': '#ff5a3c',
   'uride六里桥': '#00e0ff',
@@ -376,6 +454,56 @@ function loadCustomContent() {
 function saveCustomContent(arr) {
   try { localStorage.setItem(CUSTOM_CONTENT_KEY, JSON.stringify(arr)); return true; }
   catch (e) { return false; }
+}
+
+/* ===== 招式库 =====
+   记录「某个训练内容在某天做成功了」的条目，复用原视频（不重复存视频本体）。
+   条目结构：{ id, name, date, videoId, createdAt } */
+function loadTrickLibrary() {
+  try {
+    const arr = JSON.parse(localStorage.getItem(TRICK_LIB_KEY) || '[]');
+    return Array.isArray(arr) ? arr.filter(t => t && t.videoId) : [];
+  } catch (e) { return []; }
+}
+function saveTrickLibrary(arr) {
+  try { localStorage.setItem(TRICK_LIB_KEY, JSON.stringify(arr)); return true; }
+  catch (e) { return false; }
+}
+function makeTrickId() {
+  return 'tk_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+}
+/* 同一「日期 + 视频」在库中是否已存在（一个视频只对应一条招式） */
+function findTrickByVideo(date, videoId) {
+  if (!date || !videoId) return null;
+  return loadTrickLibrary().find(t => t.date === date && t.videoId === videoId) || null;
+}
+/* 该视频是否被招式库引用（用于删除保护） */
+function isVideoInLibrary(videoId) {
+  if (!videoId) return false;
+  return loadTrickLibrary().some(t => t.videoId === videoId);
+}
+function addTrickEntry(name, date, videoId) {
+  if (!videoId || !date) return false;
+  if (findTrickByVideo(date, videoId)) return false;
+  const list = loadTrickLibrary();
+  list.push({
+    id: makeTrickId(),
+    name: (name || '').trim(),
+    date: date,
+    videoId: videoId,
+    createdAt: Date.now()
+  });
+  return saveTrickLibrary(list);
+}
+function removeTrickEntry(id) {
+  if (!id) return;
+  saveTrickLibrary(loadTrickLibrary().filter(t => t.id !== id));
+}
+/* 删除视频本体：若该视频已被招式库引用则跳过，保护「成功视频」不被连带删除 */
+function deleteVideoIfUnused(id) {
+  if (!id) return Promise.resolve(false);
+  if (isVideoInLibrary(id)) return Promise.resolve(false);
+  return idbDeleteVideo(id);
 }
 
 let currentYear, currentMonth, selectedDate = null;
@@ -481,6 +609,8 @@ function clearAllData() {
     if (_storageMode === 'local') localStorage.removeItem(STORAGE_KEY);
     else if (_storageMode === 'session') sessionStorage.removeItem(STORAGE_KEY);
   } catch (e) { console.warn('clearAllData 清除持久化介质失败:', e); }
+  // 同步清空招式库
+  try { localStorage.removeItem(TRICK_LIB_KEY); } catch (e) { console.warn('clearAllData 清除招式库失败:', e); }
   // 同步清空本地视频库
   idbClearVideos();
 }
@@ -612,7 +742,7 @@ function collectVideoIds(content) {
   if (!Array.isArray(content)) return [];
   return content.map(normalizeContentItem).map(x => x.videoId).filter(Boolean);
 }
-/* 生成内容的纯文本（用于汇总/PDF），视频仅以文字标记附加 */
+/* 生成内容的纯文本（用于月度汇总），视频仅以文字标记附加 */
 function contentTextOf(content) {
   const arr = !content ? [] : (Array.isArray(content) ? content : [content]);
   const items = arr.map(normalizeContentItem);
@@ -628,7 +758,7 @@ function contentTextOf(content) {
 function storageModeLabel() {
   if (_storageMode === 'local') return '本地存储（刷新不丢失）';
   if (_storageMode === 'session') return '会话存储（关闭标签页后丢失）';
-  return '临时存储（刷新页面后丢失，请及时导出 PDF 备份）';
+  return '临时存储（刷新页面后丢失，请勿清理浏览器数据）';
 }
 function dateKey(y, m, d) {
   return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
@@ -767,7 +897,6 @@ function renderDetail() {
   form.style.display = '';
   populateCoachSelect(rec ? rec.coach : '自己练习');
   populateVenueSelect(rec ? rec.venue : '');
-  populateContentDatalist();
   // 兼容旧数据：content 可能是字符串、字符串数组，或新格式对象数组
   if (rec && rec.content) {
     const arr = Array.isArray(rec.content) ? rec.content : [rec.content];
@@ -921,14 +1050,17 @@ function isCustomContent(name) {
   return !CONTENT_PRESETS.includes(name) && loadCustomContent().includes(name);
 }
 
-function populateContentDatalist() {
-  const dl = document.getElementById('contentPresetList');
-  dl.innerHTML = '';
-  getAllContentPresets().forEach(c => {
-    const o = document.createElement('option');
-    o.value = c;
-    dl.appendChild(o);
-  });
+/* 把用户新输入的内容记住，供下次下拉选择（忽略大小写去重） */
+function rememberContent(name) {
+  const v = (name || '').trim();
+  if (!v) return;
+  const lower = v.toLowerCase();
+  const exists = CONTENT_PRESETS.concat(loadCustomContent())
+    .some(x => (x || '').trim().toLowerCase() === lower);
+  if (exists) return;
+  const list = loadCustomContent();
+  list.push(v);
+  saveCustomContent(list);
 }
 
 function renderContentRows() {
@@ -949,30 +1081,124 @@ function buildContentItem(item, idx) {
   const wrap = document.createElement('div');
   wrap.className = 'content-item';
 
-  // 第一行：内容输入 + 加行/删行
+  // 第一行：内容输入框（可点开选择，也可直接输入） + 加行(＋) + 删行(×)
   const row = document.createElement('div');
   row.className = 'content-row';
 
+  const combo = document.createElement('div');
+  combo.className = 'combo';
+
   const input = document.createElement('input');
-  input.className = 'form-input';
+  input.className = 'form-input combo-input';
   input.type = 'text';
-  input.placeholder = '输入或选择练习内容，如 Ollie';
+  input.placeholder = '选择或输入训练内容';
   input.value = item.name || '';
-  input.setAttribute('list', 'contentPresetList');
+  input.autocomplete = 'off';
   input.dataset.idx = idx;
-  input.addEventListener('input', () => { currentContentItems[idx].name = input.value; });
-  input.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') { e.preventDefault(); addContentRow(idx + 1); }
+
+  const arrow = document.createElement('button');
+  arrow.type = 'button';
+  arrow.className = 'combo-arrow';
+  arrow.innerHTML = '<span class="combo-caret"></span>';
+  arrow.tabIndex = -1;
+
+  const list = document.createElement('div');
+  list.className = 'combo-list';
+  list.style.display = 'none';
+
+  // 自定义内容时显示的删除链接
+  const delLink = document.createElement('button');
+  delLink.type = 'button';
+  delLink.className = 'btn-link';
+  delLink.style.marginTop = '0';
+  delLink.textContent = '删除此自定义内容';
+
+  const updateDelLink = () => {
+    delLink.style.display = isCustomContent(input.value) ? '' : 'none';
+  };
+  updateDelLink();
+
+  delLink.addEventListener('click', () => {
+    const rest = loadCustomContent().filter(x => x !== input.value);
+    saveCustomContent(rest);
+    currentContentItems[idx].name = '';
+    input.value = '';
+    updateDelLink();
+    flashToast('🗑️ 已删除自定义内容');
   });
+
+  // 渲染下拉候选（按关键字过滤；不传关键字则显示全部）
+  const renderOptions = (keyword) => {
+    const kw = (keyword || '').trim().toLowerCase();
+    const all = getAllContentPresets().slice();
+    if (input.value && !all.includes(input.value)) all.unshift(input.value);
+    const matched = all.filter(v => !kw || v.toLowerCase().includes(kw));
+    list.innerHTML = '';
+    if (matched.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'combo-empty';
+      empty.textContent = '回车或点其它地方，即可记住这个新内容';
+      list.appendChild(empty);
+      return;
+    }
+    matched.forEach(v => {
+      const opt = document.createElement('div');
+      opt.className = 'combo-option';
+      opt.textContent = v;
+      // 用 pointerdown 选中：避免移动端先失焦导致点不中
+      opt.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        input.value = v;
+        currentContentItems[idx].name = v;
+        list.style.display = 'none';
+        updateDelLink();
+      });
+      list.appendChild(opt);
+    });
+  };
+
+  const openList = () => { renderOptions(''); list.style.display = ''; };
+  const closeList = () => { list.style.display = 'none'; };
+
+  input.addEventListener('focus', openList);
+  input.addEventListener('input', () => {
+    currentContentItems[idx].name = input.value;
+    renderOptions(input.value);
+    list.style.display = '';
+    updateDelLink();
+  });
+  input.addEventListener('change', () => {
+    // 离开输入框时，把新内容记住，供下次下拉选择
+    const v = (input.value || '').trim();
+    input.value = v;
+    currentContentItems[idx].name = v;
+    rememberContent(v);
+    updateDelLink();
+  });
+  input.addEventListener('blur', () => { closeList(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); closeList(); input.blur(); }
+    else if (e.key === 'Escape') { closeList(); }
+  });
+  arrow.addEventListener('click', () => {
+    if (list.style.display === 'none') { openList(); input.focus(); }
+    else closeList();
+  });
+
+  combo.appendChild(input);
+  combo.appendChild(arrow);
+  combo.appendChild(list);
 
   const addBtn = document.createElement('button');
   addBtn.type = 'button';
-  addBtn.className = 'row-btn row-add';
+  addBtn.className = 'btn btn-ghost';
+  addBtn.style.padding = '8px 12px';
+  addBtn.style.fontSize = '13px';
   addBtn.textContent = '+';
   addBtn.title = '在下方添加一行';
   addBtn.addEventListener('click', () => addContentRow(idx + 1));
 
-  row.appendChild(input);
+  row.appendChild(combo);
   row.appendChild(addBtn);
 
   if (currentContentItems.length > 1) {
@@ -980,11 +1206,12 @@ function buildContentItem(item, idx) {
     delBtn.type = 'button';
     delBtn.className = 'row-btn row-del';
     delBtn.textContent = '×';
-    delBtn.title = '删除此行';
+    delBtn.title = '删除此项';
     delBtn.addEventListener('click', () => removeContentRow(idx));
     row.appendChild(delBtn);
   }
   wrap.appendChild(row);
+  wrap.appendChild(delLink);
 
   // 第二行：视频
   const vline = document.createElement('div');
@@ -1009,6 +1236,35 @@ function buildContentItem(item, idx) {
     rmBtn.textContent = '✕ 移除';
     rmBtn.addEventListener('click', () => removeVideo(idx));
     vline.appendChild(rmBtn);
+
+    // 录入招式库：一支成功视频对应一条招式，再次点击即取消录入
+    const libBtn = document.createElement('button');
+    libBtn.type = 'button';
+    libBtn.className = 'video-btn';
+    const refreshLibBtn = () => {
+      const inLib = !!findTrickByVideo(selectedDate, item.videoId);
+      libBtn.classList.toggle('in-lib', inLib);
+      libBtn.textContent = inLib ? '✓ 已录入招式库' : '⭐ 录入招式库';
+      libBtn.title = inLib ? '点击可从招式库移除此条' : '把这个成功的视频录入招式库';
+    };
+    refreshLibBtn();
+    libBtn.addEventListener('click', () => {
+      const videoId = (currentContentItems[idx] || {}).videoId;
+      if (!videoId) { flashToast('⚠️ 请先上传视频'); return; }
+      if (!selectedDate) { flashToast('⚠️ 请先选择日期'); return; }
+      const exist = findTrickByVideo(selectedDate, videoId);
+      if (exist) {
+        removeTrickEntry(exist.id);
+        flashToast('已从招式库移除该条');
+      } else {
+        const name = ((currentContentItems[idx] || {}).name || '').trim();
+        if (!name) { flashToast('⚠️ 请先填写训练内容名称'); return; }
+        addTrickEntry(name, selectedDate, videoId);
+        flashToast('⭐ 已录入招式库：' + name);
+      }
+      refreshLibBtn();
+    });
+    vline.appendChild(libBtn);
 
     // 诊断信息行（有视频时也要显示，用于播放报错定位）
     const diag = document.createElement('div');
@@ -1231,7 +1487,7 @@ function addContentRow(atIdx) {
   renderContentRows();
   // 聚焦到新行
   setTimeout(() => {
-    const rows = document.querySelectorAll('#contentRows .content-item .content-row input');
+    const rows = document.querySelectorAll('#contentRows .content-item .content-row .combo-input');
     if (rows[atIdx]) rows[atIdx].focus();
   }, 0);
 }
@@ -1243,71 +1499,11 @@ function removeContentRow(idx) {
 }
 
 function bindContentItems() {
-  // 管理预设内容
-  document.getElementById('addContentPresetBtn').addEventListener('click', () => {
-    const box = document.getElementById('contentPresetBox');
-    const isOpen = box.style.display === 'flex';
-    box.style.display = isOpen ? 'none' : 'flex';
-    if (!isOpen) {
-      document.getElementById('newContentInput').focus();
-      renderPresetManageList();
-    }
-  });
-  document.getElementById('cancelAddContent').addEventListener('click', () => {
-    document.getElementById('contentPresetBox').style.display = 'none';
-    document.getElementById('newContentInput').value = '';
-  });
-  document.getElementById('confirmAddContent').addEventListener('click', () => {
-    const name = document.getElementById('newContentInput').value.trim();
-    if (!name) { flashToast('⚠️ 请输入练习内容'); return; }
-    if (CONTENT_PRESETS.includes(name) || loadCustomContent().includes(name)) {
-      flashToast('⚠️ 该内容已存在'); return;
-    }
-    const list = loadCustomContent();
-    list.push(name);
-    saveCustomContent(list);
-    document.getElementById('newContentInput').value = '';
-    populateContentDatalist();
-    renderPresetManageList();
-    flashToast('✅ 预设内容已添加');
-  });
-}
-
-// 渲染预设管理列表（可删除自定义预设）
-function renderPresetManageList() {
-  let box = document.getElementById('presetManageList');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'presetManageList';
-    box.style.marginTop = '8px';
-    document.getElementById('contentPresetBox').parentElement.appendChild(box);
-  }
-  const customs = loadCustomContent();
-  box.innerHTML = '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px;">自定义预设（点击×删除）：</div>';
-  if (customs.length === 0) {
-    box.innerHTML += '<div style="font-size:11px;color:rgba(255,255,255,0.3);">暂无自定义预设</div>';
-    return;
-  }
-  customs.forEach(c => {
-    const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;justify-content:space-between;padding:3px 0;font-size:12px;';
-    row.innerHTML = '<span>' + c + '</span>';
-    const del = document.createElement('button');
-    del.type = 'button';
-    del.className = 'row-btn row-del';
-    del.style.width = '22px';
-    del.style.height = '22px';
-    del.style.fontSize = '12px';
-    del.textContent = '×';
-    del.addEventListener('click', () => {
-      const list = loadCustomContent().filter(x => x !== c);
-      saveCustomContent(list);
-      populateContentDatalist();
-      renderPresetManageList();
-      flashToast('🗑️ 已删除预设');
+  // 点击内容下拉以外的区域时，收起所有下拉候选
+  document.addEventListener('click', (e) => {
+    document.querySelectorAll('#contentRows .combo').forEach((c) => {
+      if (!c.contains(e.target)) c.querySelector('.combo-list').style.display = 'none';
     });
-    row.appendChild(del);
-    box.appendChild(row);
   });
 }
 
@@ -1334,9 +1530,9 @@ function bindForm() {
 
       const records = loadRecords();
       const prev = records[selectedDate];
-      // 联动清理：本次被移除的视频，从本地库删除
+      // 联动清理：本次被移除的视频，从本地库删除（招式库引用的视频会被保护）
       const newIds = new Set(content.map(it => it.videoId).filter(Boolean));
-      collectVideoIds(prev && prev.content).forEach(id => { if (!newIds.has(id)) idbDeleteVideo(id); });
+      collectVideoIds(prev && prev.content).forEach(id => { if (!newIds.has(id)) deleteVideoIfUnused(id); });
 
       records[selectedDate] = { coach, venue, content, duration };
       const persisted = saveRecords(records);
@@ -1347,7 +1543,7 @@ function bindForm() {
       if (persisted) {
         flashToast('✅ ' + dateLabel + ' 训练记录已保存');
       } else {
-        flashToast('⚠️ ' + dateLabel + ' 已保存（当前环境不支持持久化，刷新会丢失，建议导出 PDF 备份）');
+        flashToast('⚠️ ' + dateLabel + ' 已保存（当前环境不支持持久化，刷新会丢失，请勿清理浏览器数据）');
       }
     } catch (err) {
       console.error('保存失败:', err);
@@ -1366,8 +1562,8 @@ function bindForm() {
         btn.dataset.confirming = '0';
         btn.textContent = '删除';
         const records = loadRecords();
-        // 同步清理该日引用的本地视频
-        collectVideoIds(records[selectedDate] && records[selectedDate].content).forEach(id => idbDeleteVideo(id));
+        // 同步清理该日引用的本地视频（招式库引用的视频会被保护）
+        collectVideoIds(records[selectedDate] && records[selectedDate].content).forEach(id => deleteVideoIfUnused(id));
         delete records[selectedDate];
         saveRecords(records);
         renderAll();
@@ -1459,39 +1655,446 @@ function renderSummary() {
 }
 
 /* =========================
-   PDF 导出
+   训练内容检索
+   选一个练过的内容，按日期倒序列出每次记录及其视频。
    ========================= */
-async function exportPDF() {
-  const title = currentYear + '年' + (currentMonth + 1) + '月 滑板训练总结';
-  const summary = document.getElementById('summaryBody');
-  if (!summary) return;
-  flashToast('⏳ 正在生成 PDF...');
-  try {
-    const canvas = await html2canvas(summary, {
-      backgroundColor: '#1a1a2e', scale: 2, useCORS: true
+const _searchUrls = new Map(); // videoId -> objectURL（检索面板专用，避免与编辑区互相回收）
+
+function revokeSearchUrls() {
+  _searchUrls.forEach(url => { try { URL.revokeObjectURL(url); } catch (e) {} });
+  _searchUrls.clear();
+}
+
+/* 收集所有记录里出现过的训练内容（忽略大小写去重，按出现次数从多到少） */
+function getRecordedContents() {
+  const records = loadRecords();
+  const map = new Map(); // lowerKey -> { name, n }
+  for (const date in records) {
+    const rec = records[date] || {};
+    const arr = !rec.content ? [] : (Array.isArray(rec.content) ? rec.content : [rec.content]);
+    arr.map(normalizeContentItem).forEach(it => {
+      const name = (it.name || '').trim();
+      if (!name) return;
+      const key = name.toLowerCase();
+      if (map.has(key)) map.get(key).n++;
+      else map.set(key, { name: name, n: 1 });
     });
-    const imgData = canvas.toDataURL('image/png');
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageW = pdf.internal.pageSize.getWidth();
-    const margin = 10;
-    const imgW = pageW - margin * 2;
-    const imgH = (canvas.height * imgW) / canvas.width;
-    pdf.setFontSize(16);
-    pdf.text(title, pageW / 2, 15, { align: 'center' });
-    pdf.addImage(imgData, 'PNG', margin, 22, imgW, imgH);
-    // 视频为本地数据，无法嵌入 PDF，仅在明细中标注数量
-    const pageH = pdf.internal.pageSize.getHeight();
-    const noteY = Math.min(22 + imgH + 6, pageH - 8);
-    pdf.setFontSize(9);
-    pdf.setTextColor(140, 140, 140);
-    pdf.text('注：训练视频保存在本地浏览器，PDF 仅标注数量，不含视频文件。', pageW / 2, noteY, { align: 'center' });
-    pdf.save('滑板训练_' + currentYear + '-' + String(currentMonth+1).padStart(2,'0') + '.pdf');
-    flashToast('✅ PDF 导出成功');
-  } catch (e) {
-    console.error(e);
-    flashToast('❌ 导出失败，请重试');
   }
+  return Array.from(map.values())
+    .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name))
+    .map(x => x.name);
+}
+
+/* 检索某内容：精确匹配（忽略大小写/空格）；无结果时退回「包含」匹配。
+   同一天合并为一行，收集该天该内容的全部视频。 */
+function findContentSessions(query) {
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return { fuzzy: false, list: [] };
+  const records = loadRecords();
+  const build = (pred) => {
+    const out = [];
+    for (const date in records) {
+      const rec = records[date] || {};
+      const arr = !rec.content ? [] : (Array.isArray(rec.content) ? rec.content : [rec.content]);
+      const items = arr.map(normalizeContentItem)
+        .filter(it => (it.name || '').trim() && pred((it.name || '').trim().toLowerCase()));
+      if (!items.length) continue;
+      out.push({
+        date: date,
+        coach: rec.coach || '',
+        venue: rec.venue || '',
+        duration: rec.duration || 0,
+        videos: items.filter(x => x.videoId).map(x => ({
+          videoId: x.videoId, videoName: x.videoName || '', videoSize: x.videoSize || 0
+        }))
+      });
+    }
+    out.sort((a, b) => b.date.localeCompare(a.date)); // 最近在前
+    return out;
+  };
+  let list = build(s => s === q);
+  let fuzzy = false;
+  if (!list.length) {
+    list = build(s => s.includes(q));
+    fuzzy = list.length > 0;
+  }
+  return { fuzzy: fuzzy, list: list };
+}
+
+/* 渲染检索结果 */
+function renderSearchResults() {
+  const box = document.getElementById('searchResult');
+  if (!box) return;
+  revokeSearchUrls();
+  const q = (document.getElementById('searchInput')?.value || '').trim();
+  if (!q) {
+    box.innerHTML = '<div class="search-stat">输入或选择一个训练内容，查看历史记录</div>';
+    return;
+  }
+  const found = findContentSessions(q);
+  if (!found.list.length) {
+    box.innerHTML = '<div class="search-stat">没有找到「' + q + '」的训练记录</div>';
+    return;
+  }
+  const totalHours = found.list.reduce((s, r) => s + (r.duration || 0), 0);
+  let html = '<div class="search-stat">共 ' + found.list.length + ' 天 · 这些训练日累计 ' + totalHours.toFixed(1) + ' 小时'
+    + (found.fuzzy ? '　（模糊匹配结果）' : '') + '</div>';
+  found.list.forEach((r) => {
+    const parts = r.date.split('-');
+    const dateLabel = parts[0] + '年' + (+parts[1]) + '月' + (+parts[2]) + '日';
+    const meta = [r.coach, r.venue].filter(Boolean).join(' · ');
+    html += '<div class="search-item">';
+    html += '<div class="search-item-head"><div><span class="search-date">' + dateLabel + '</span>';
+    if (meta) html += '<span class="search-meta">　' + meta + '</span>';
+    html += '</div><div class="search-video-btns">';
+    if (r.videos.length) {
+      r.videos.forEach((v, vi) => {
+        const label = r.videos.length > 1 ? ('▶ 视频' + (vi + 1)) : '▶ 播放';
+        html += '<button type="button" class="video-btn" data-video-id="' + v.videoId + '" data-label="' + label + '">' + label + '</button>';
+      });
+    }
+    html += '</div></div><div class="search-player"></div></div>';
+  });
+  box.innerHTML = html;
+  box.querySelectorAll('.video-btn[data-video-id]').forEach(btn => {
+    btn.addEventListener('click', () => toggleSearchVideo(btn));
+  });
+}
+
+/* 检索结果里的视频：点击展开/收起内嵌播放器 */
+async function toggleSearchVideo(btn) {
+  const holder = btn.closest('.search-item')?.querySelector('.search-player');
+  if (!holder) return;
+  const videoId = btn.dataset.videoId;
+  const label = btn.dataset.label || '▶ 播放';
+  const open = holder.querySelector('.video-player[data-video-id="' + videoId + '"]');
+  if (open) {
+    const v = open.querySelector('video');
+    if (v) { try { v.pause(); } catch (e) {} }
+    const url = open.dataset.url;
+    if (url) { try { URL.revokeObjectURL(url); } catch (e) {} _searchUrls.delete(videoId); }
+    open.remove();
+    btn.textContent = label;
+    return;
+  }
+  try {
+    const blob = await idbGetVideo(videoId);
+    if (!blob) { flashToast('⚠️ 未找到视频（可能已被清理）'); return; }
+    const url = URL.createObjectURL(blob);
+    _searchUrls.set(videoId, url);
+    const player = document.createElement('div');
+    player.className = 'video-player';
+    player.dataset.videoId = videoId;
+    player.dataset.url = url;
+    const v = document.createElement('video');
+    v.className = 'content-video';
+    v.controls = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', 'playsinline');
+    v.setAttribute('webkit-playsinline', 'webkit-playsinline');
+    v.preload = 'auto';
+    v.src = url;
+    player.appendChild(v);
+    holder.appendChild(player);
+    btn.textContent = '⏸ 收起';
+    v.load();
+    v.addEventListener('error', () => { flashToast('❌ 视频无法播放（编码可能不被支持）'); });
+  } catch (e) {
+    flashToast('❌ 视频读取失败');
+  }
+}
+
+/* 检索下拉候选：只列出「已记录过」的训练内容 */
+function renderSearchOptions(keyword) {
+  const listEl = document.getElementById('searchList');
+  if (!listEl) return;
+  const kw = (keyword || '').trim().toLowerCase();
+  const all = getRecordedContents();
+  const matched = all.filter(v => !kw || v.toLowerCase().includes(kw));
+  listEl.innerHTML = '';
+  if (!matched.length) {
+    const empty = document.createElement('div');
+    empty.className = 'combo-empty';
+    empty.textContent = all.length ? '没有匹配的已记录内容' : '还没有任何训练记录';
+    listEl.appendChild(empty);
+    return;
+  }
+  matched.forEach((v) => {
+    const opt = document.createElement('div');
+    opt.className = 'combo-option';
+    opt.textContent = v;
+    opt.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const inp = document.getElementById('searchInput');
+      inp.value = v;
+      listEl.style.display = 'none';
+      renderSearchResults();
+    });
+    listEl.appendChild(opt);
+  });
+}
+
+function bindSearchPanel() {
+  const inp = document.getElementById('searchInput');
+  const arrow = document.getElementById('searchArrow');
+  const listEl = document.getElementById('searchList');
+  if (!inp || !arrow || !listEl) return;
+  const openList = () => { renderSearchOptions(''); listEl.style.display = ''; };
+  const closeList = () => { listEl.style.display = 'none'; };
+  inp.addEventListener('focus', openList);
+  inp.addEventListener('input', () => {
+    renderSearchOptions(inp.value);
+    listEl.style.display = '';
+    renderSearchResults();
+  });
+  inp.addEventListener('blur', () => { closeList(); });
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); closeList(); renderSearchResults(); inp.blur(); }
+    else if (e.key === 'Escape') { closeList(); }
+  });
+  arrow.addEventListener('pointerdown', (e) => e.preventDefault()); // 避免点击箭头时输入框失焦
+  arrow.addEventListener('click', () => {
+    if (listEl.style.display === 'none') { openList(); inp.focus(); }
+    else closeList();
+  });
+  // 点击面板以外区域时收起候选
+  document.addEventListener('click', (e) => {
+    if (!listEl.parentElement.contains(e.target)) closeList();
+  });
+  renderSearchResults();
+}
+
+/* =========================
+   招式库
+   录入过的「成功视频」按招式名分组展示；支持精确 + 模糊兜底检索。
+   ========================= */
+const _libUrls = new Map(); // videoId -> objectURL（招式库弹层专用，独立回收）
+
+function revokeLibUrls() {
+  _libUrls.forEach(url => { try { URL.revokeObjectURL(url); } catch (e) {} });
+  _libUrls.clear();
+}
+
+function isTrickPanelOpen() {
+  const ov = document.getElementById('trickOverlay');
+  return !!ov && ov.style.display !== 'none';
+}
+
+/* 按招式名分组（忽略大小写），组内按日期倒序，组间按最近日期倒序 */
+function groupTrickLibrary() {
+  const map = new Map();
+  loadTrickLibrary().forEach(t => {
+    const name = (t.name || '').trim();
+    if (!name) return;
+    const key = name.toLowerCase();
+    if (!map.has(key)) map.set(key, { name: name, items: [] });
+    map.get(key).items.push(t);
+  });
+  const groups = Array.from(map.values());
+  groups.forEach(g => g.items.sort((a, b) => (b.date || '').localeCompare(a.date || '')));
+  groups.forEach(g => { g.lastDate = g.items[0] ? (g.items[0].date || '') : ''; });
+  groups.sort((a, b) => (b.lastDate || '').localeCompare(a.lastDate || '') || a.name.localeCompare(b.name));
+  return groups;
+}
+
+/* 检索招式：精确（忽略大小写/空格）；无结果时退回「包含」匹配 */
+function searchTrickLibrary(query) {
+  const all = groupTrickLibrary();
+  const q = (query || '').trim().toLowerCase();
+  if (!q) return { fuzzy: false, groups: all };
+  let groups = all.filter(g => g.name.toLowerCase() === q);
+  let fuzzy = false;
+  if (!groups.length) {
+    groups = all.filter(g => g.name.toLowerCase().includes(q));
+    fuzzy = groups.length > 0;
+  }
+  return { fuzzy: fuzzy, groups: groups };
+}
+
+function formatTrickDate(date) {
+  const p = (date || '').split('-');
+  if (p.length !== 3) return date || '';
+  return p[0] + '年' + (+p[1]) + '月' + (+p[2]) + '日';
+}
+
+function renderTrickLibrary() {
+  const box = document.getElementById('trickBody');
+  if (!box) return;
+  revokeLibUrls();
+  const q = (document.getElementById('trickSearchInput')?.value || '').trim();
+  const all = groupTrickLibrary();
+  if (!all.length) {
+    box.innerHTML = '<div class="empty-state">招式库还是空的<br>在训练记录里给成功的视频点「⭐ 录入招式库」</div>';
+    return;
+  }
+  const found = searchTrickLibrary(q);
+  if (!found.groups.length) {
+    box.innerHTML = '<div class="search-stat">没有找到「' + q + '」这个招式</div>';
+    return;
+  }
+  let html = '<div class="search-stat">共 ' + all.length + ' 个招式'
+    + (q ? '，匹配 ' + found.groups.length + ' 个' : '')
+    + (found.fuzzy ? '　（模糊匹配结果）' : '') + '</div>';
+  found.groups.forEach((g) => {
+    // 有检索关键字时自动展开匹配到的招式
+    html += '<div class="trick-group' + (q ? ' open' : '') + '">';
+    html += '<div class="trick-group-head"><span>🥇 ' + g.name + '</span>'
+      + '<span class="trick-group-count">成功 ' + g.items.length + ' 次 · 最近 ' + formatTrickDate(g.lastDate) + '</span></div>';
+    html += '<div class="trick-group-body">';
+    g.items.forEach((t) => {
+      html += '<div class="trick-row">'
+        + '<span class="trick-date">' + formatTrickDate(t.date) + '</span>'
+        + '<span class="trick-row-btns">'
+        + '<button type="button" class="video-btn" data-video-id="' + t.videoId + '">▶ 播放</button>'
+        + '<button type="button" class="video-btn remove" data-del-entry="' + t.id + '">✕</button>'
+        + '</span></div>'
+        + '<div class="trick-player"></div>';
+    });
+    html += '</div></div>';
+  });
+  box.innerHTML = html;
+
+  box.querySelectorAll('.trick-group-head').forEach(head => {
+    head.addEventListener('click', () => head.parentElement.classList.toggle('open'));
+  });
+  box.querySelectorAll('.video-btn[data-video-id]').forEach(btn => {
+    btn.addEventListener('click', () => toggleLibVideo(btn));
+  });
+  box.querySelectorAll('.video-btn[data-del-entry]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      removeTrickEntry(btn.dataset.delEntry);
+      flashToast('已从招式库移除该条');
+      renderTrickLibrary();
+    });
+  });
+}
+
+/* 招式库里的视频：点击展开/收起内嵌播放器 */
+async function toggleLibVideo(btn) {
+  const row = btn.closest('.trick-row');
+  const holder = row ? row.nextElementSibling : null;
+  if (!holder) return;
+  const videoId = btn.dataset.videoId;
+  const open = holder.querySelector('.video-player[data-video-id="' + videoId + '"]');
+  if (open) {
+    const v = open.querySelector('video');
+    if (v) { try { v.pause(); } catch (e) {} }
+    const url = open.dataset.url;
+    if (url) { try { URL.revokeObjectURL(url); } catch (e) {} _libUrls.delete(videoId); }
+    open.remove();
+    btn.textContent = '▶ 播放';
+    return;
+  }
+  try {
+    const blob = await idbGetVideo(videoId);
+    if (!blob) { flashToast('⚠️ 视频已丢失（可能已被清理）'); return; }
+    const url = URL.createObjectURL(blob);
+    _libUrls.set(videoId, url);
+    const player = document.createElement('div');
+    player.className = 'video-player';
+    player.dataset.videoId = videoId;
+    player.dataset.url = url;
+    const v = document.createElement('video');
+    v.className = 'content-video';
+    v.controls = true;
+    v.playsInline = true;
+    v.setAttribute('playsinline', 'playsinline');
+    v.setAttribute('webkit-playsinline', 'webkit-playsinline');
+    v.preload = 'auto';
+    v.src = url;
+    player.appendChild(v);
+    holder.appendChild(player);
+    btn.textContent = '⏸ 收起';
+    v.load();
+    v.addEventListener('error', () => { flashToast('❌ 视频无法播放（编码可能不被支持）'); });
+  } catch (e) {
+    flashToast('❌ 视频读取失败');
+  }
+}
+
+/* 招式库检索下拉：只列出库里已有的招式 */
+function renderTrickOptions(keyword) {
+  const listEl = document.getElementById('trickSearchList');
+  if (!listEl) return;
+  const kw = (keyword || '').trim().toLowerCase();
+  const all = groupTrickLibrary().map(g => g.name);
+  const matched = all.filter(v => !kw || v.toLowerCase().includes(kw));
+  listEl.innerHTML = '';
+  if (!matched.length) {
+    const empty = document.createElement('div');
+    empty.className = 'combo-empty';
+    empty.textContent = all.length ? '没有匹配的招式' : '招式库还是空的';
+    listEl.appendChild(empty);
+    return;
+  }
+  matched.forEach((v) => {
+    const opt = document.createElement('div');
+    opt.className = 'combo-option';
+    opt.textContent = v;
+    opt.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const inp = document.getElementById('trickSearchInput');
+      inp.value = v;
+      listEl.style.display = 'none';
+      renderTrickLibrary();
+    });
+    listEl.appendChild(opt);
+  });
+}
+
+function openTrickLibrary() {
+  const ov = document.getElementById('trickOverlay');
+  if (!ov) return;
+  ov.style.display = 'flex';
+  const inp = document.getElementById('trickSearchInput');
+  if (inp) inp.value = '';
+  renderTrickLibrary();
+}
+
+function closeTrickLibrary() {
+  const ov = document.getElementById('trickOverlay');
+  if (!ov) return;
+  ov.style.display = 'none';
+  revokeLibUrls();
+  const listEl = document.getElementById('trickSearchList');
+  if (listEl) listEl.style.display = 'none';
+}
+
+function bindTrickLibrary() {
+  const ov = document.getElementById('trickOverlay');
+  const openBtn = document.getElementById('trickLibBtn');
+  if (!ov || !openBtn) return;
+  openBtn.addEventListener('click', openTrickLibrary);
+  const closeBtn = document.getElementById('trickCloseBtn');
+  if (closeBtn) closeBtn.addEventListener('click', closeTrickLibrary);
+  // 点击遮罩空白处关闭
+  ov.addEventListener('click', (e) => { if (e.target === ov) closeTrickLibrary(); });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isTrickPanelOpen()) closeTrickLibrary();
+  });
+
+  const inp = document.getElementById('trickSearchInput');
+  const arrow = document.getElementById('trickSearchArrow');
+  const listEl = document.getElementById('trickSearchList');
+  if (!inp || !arrow || !listEl) return;
+  const openList = () => { renderTrickOptions(''); listEl.style.display = ''; };
+  const closeList = () => { listEl.style.display = 'none'; };
+  inp.addEventListener('focus', openList);
+  inp.addEventListener('input', () => {
+    renderTrickOptions(inp.value);
+    listEl.style.display = '';
+    renderTrickLibrary();
+  });
+  inp.addEventListener('blur', () => { closeList(); });
+  inp.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); closeList(); renderTrickLibrary(); inp.blur(); }
+    else if (e.key === 'Escape') { closeList(); }
+  });
+  arrow.addEventListener('pointerdown', (e) => e.preventDefault()); // 避免点击箭头时输入框失焦
+  arrow.addEventListener('click', () => {
+    if (listEl.style.display === 'none') { openList(); inp.focus(); }
+    else closeList();
+  });
 }
 
 /* =========================
@@ -1517,6 +2120,7 @@ function renderAll() {
   renderCalendar();
   renderDetail();
   renderSummary();
+  renderSearchResults(); // 记录变化后同步刷新检索结果
   const ss = document.getElementById('storageStatus');
   if (ss) {
     const count = Object.keys(loadRecords()).length;
@@ -1538,6 +2142,8 @@ function init() {
   bindForm();
   bindCustomItems();
   bindContentItems();
+  bindSearchPanel();
+  bindTrickLibrary();
 
   document.getElementById('prevMonth').addEventListener('click', () => {
     currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; }
@@ -1552,7 +2158,6 @@ function init() {
     currentYear = now.getFullYear(); currentMonth = now.getMonth();
     syncSelectors(); renderAll();
   });
-  document.getElementById('exportBtn').addEventListener('click', exportPDF);
 
   // 清空数据（二次确认）
   let clearConfirmTimer = null;
