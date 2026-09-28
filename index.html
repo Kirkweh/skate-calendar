@@ -113,6 +113,14 @@
     outline: none; transition: border 0.2s; font-size: 14px; font-family: inherit;
   }
   .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: #00e0ff; }
+  /* 顶栏「年 / 月」下拉：宽度按内容自适应（此处用 ID 选择器，优先级高于 .form-select） */
+  #yearSelect, #monthSelect { width: auto; font-size: 13px; }
+  /* iOS Safari 聚焦「字号 < 16px」的表单控件时会自动放大整页且不缩回，放大后右侧内容被挤出屏幕。
+     窄屏下把表单控件字号提到 16px 即可规避（桌面端字号不变，避免影响原有观感）。 */
+  @media (max-width: 768px) {
+    .form-input, .form-select, .form-textarea,
+    #yearSelect, #monthSelect { font-size: 16px; }
+  }
   .form-select option { background: #1a1a2e; color: #fff; }
   .form-textarea { resize: vertical; }
   .form-actions { display: flex; gap: 8px; padding-top: 4px; }
@@ -238,13 +246,13 @@
     background: rgba(255,255,255,0.03); color-scheme: dark;
   }
   .trick-manual .video-btn { align-self: flex-start; }
-  .trick-suggest { display: flex; flex-wrap: wrap; gap: 6px; }
-  .trick-suggest:empty { display: none; }
-  .trick-suggest button {
-    font-family: inherit; font-size: 11px; padding: 4px 9px; border-radius: 999px; cursor: pointer;
-    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff;
-  }
-  .trick-suggest button:hover { background: rgba(0,224,255,0.15); }
+  /* 日期「年 / 月 / 日」三个下拉同行等宽；min-width:0 与场地/教练下拉同理，防止被内容撑破 */
+  .date-selects { display: flex; gap: 6px; }
+  .date-selects .form-select { flex: 1; min-width: 0; }
+  /* 「年 / 月 / 日」未选态与「招式名称（必填）」的提示文字用同一个颜色：
+     这里写死一个值，避免各设备对 placeholder 的默认灰度不一致；选了具体年月日后恢复白色 */
+  .trick-manual .form-input::placeholder,
+  .date-selects .form-select.is-empty { color: rgba(255,255,255,0.45); }
   .trick-manual-actions { display: flex; gap: 8px; }
   .trick-manual-actions .btn { flex: 1; }
 
@@ -352,8 +360,9 @@
       </div>
     </div>
     <div class="header-right">
-      <select id="yearSelect" class="form-select" style="width:auto;font-size:13px;"><option value="2023">2023年</option><option value="2024">2024年</option><option value="2025">2025年</option><option value="2026">2026年</option><option value="2027">2027年</option><option value="2028">2028年</option><option value="2029">2029年</option></select>
-      <select id="monthSelect" class="form-select" style="width:auto;font-size:13px;"><option value="0">1月</option><option value="1">2月</option><option value="2">3月</option><option value="3">4月</option><option value="4">5月</option><option value="5">6月</option><option value="6">7月</option><option value="7">8月</option><option value="8">9月</option><option value="9">10月</option><option value="10">11月</option><option value="11">12月</option></select>
+      <!-- 年 / 月选项由 initSelectors() 动态生成（年份随当前年份滚动），此处不再硬编码，避免重复 -->
+      <select id="yearSelect" class="form-select"></select>
+      <select id="monthSelect" class="form-select"></select>
       <button id="todayBtn" class="btn btn-ghost" style="font-size:13px;">今天</button>
       <button id="trickLibBtn" class="btn btn-ghost" style="font-size:13px;">⭐ 招式库</button>
     </div>
@@ -474,9 +483,13 @@
     <button type="button" id="trickManualToggle" class="btn btn-ghost" style="width:100%;font-size:13px;margin-bottom:12px;">＋ 直接录入招式</button>
     <div id="trickManualBox" class="trick-manual" style="display:none;">
       <input id="trickManualName" class="form-input" type="text" placeholder="招式名称（必填）" autocomplete="off">
-      <div id="trickManualSuggest" class="trick-suggest"></div>
-      <input id="trickManualDate" class="form-input" type="date">
-      <div class="form-hint">日期可以留空——很久以前成的招、记不清日期时就空着（留空则不计入日历星标与月度成招个数）</div>
+      <!-- 日期用「年 / 月 / 日」三个系统下拉：原生日期控件只能逐月往前翻，补录很久以前的招式取年份太慢 -->
+      <div class="date-selects">
+        <select id="trickManualYear" class="form-select"></select>
+        <select id="trickManualMonth" class="form-select"></select>
+        <select id="trickManualDay" class="form-select"></select>
+      </div>
+      <div class="form-hint">日期可以留空——很久以前成的招、记不清日期时就空着（留空则不计入日历星标与「录入招式」统计）</div>
       <label class="video-btn upload" id="trickManualVideoLabel">📹 选择视频（可选）
         <input type="file" accept="video/*" class="video-file-input" id="trickManualVideo">
       </label>
@@ -1745,6 +1758,75 @@ async function detectMp4Codec(file) {
   } catch (e) { return 'unknown'; }
 }
 
+/* ===== 读取视频拍摄时间 =====
+   MP4 / MOV 的 moov → mvhd 里存有 creation_time（自 1904-01-01 起的秒数，UTC）。
+   做法：按文件顶层盒子逐个读 8 字节头跳转，命中 moov 后只读它开头一小段解析 mvhd——
+   这样无论 moov 在文件头（faststart）还是文件尾（iPhone 拍的 MOV 通常在尾部）都能读到，
+   且不必把整个视频读进内存。读不到、被置 0 或数值不合理时返回 ''。 */
+const MP4_EPOCH_DIFF = 2082844800; // 1904-01-01 与 1970-01-01 之间的秒数
+
+/* 在缓冲区里按盒子结构查找 mvhd，返回 creation_time 秒数（找不到返回 0） */
+function findMvhdSecs(buf) {
+  try {
+    const view = new DataView(buf);
+    let offset = 0;
+    while (offset + 8 <= buf.byteLength) {
+      const size = view.getUint32(offset);
+      if (size < 8 || offset + size > buf.byteLength) break;
+      const type = String.fromCharCode(view.getUint8(offset+4), view.getUint8(offset+5), view.getUint8(offset+6), view.getUint8(offset+7));
+      if (type === 'mvhd') {
+        // mvhd 是 FullBox：盒子头 8 字节 + 版本(1) + 标志(3)，其后即 creation_time
+        if (view.getUint8(offset + 8) === 1) {
+          return view.getUint32(offset + 12) * 4294967296 + view.getUint32(offset + 16);
+        }
+        return view.getUint32(offset + 12);
+      }
+      offset += size;
+    }
+  } catch (e) {}
+  return 0;
+}
+
+async function readMp4CreationTime(file) {
+  try {
+    let offset = 0;
+    let guard = 0; // 防止异常文件导致死循环
+    while (offset + 8 <= file.size && guard++ < 64) {
+      const head = new DataView(await file.slice(offset, offset + 8).arrayBuffer());
+      let size = head.getUint32(0);
+      const type = String.fromCharCode(head.getUint8(4), head.getUint8(5), head.getUint8(6), head.getUint8(7));
+      let headerSize = 8;
+      if (size === 1) {
+        // 64 位大小：真实大小写在盒子头的后 8 字节
+        const big = new DataView(await file.slice(offset + 8, offset + 16).arrayBuffer());
+        size = Number(big.getBigUint64(0));
+        headerSize = 16;
+      } else if (size === 0) {
+        // 0 表示「一直到文件结尾」
+        size = file.size - offset;
+      }
+      if (size < headerSize) break;
+      if (type === 'moov') {
+        const end = Math.min(offset + headerSize + 65536, offset + size);
+        const chunk = await file.slice(offset + headerSize, end).arrayBuffer();
+        const secs = findMvhdSecs(chunk);
+        if (!secs) return '';
+        const dt = new Date((secs - MP4_EPOCH_DIFF) * 1000);
+        if (isNaN(dt.getTime())) return '';
+        // 合理性校验：只接受 2000-01-01 之后、且不晚于明天的时间
+        // （被置 0 的文件会落到 1904 年，被转码改写的可能变成未来时间，都判为无效）
+        if (dt.getFullYear() < 2000) return '';
+        if (dt.getTime() > Date.now() + 86400000) return '';
+        return dt.getFullYear() + '-'
+          + String(dt.getMonth() + 1).padStart(2, '0') + '-'
+          + String(dt.getDate()).padStart(2, '0');
+      }
+      offset += size;
+    }
+  } catch (e) {}
+  return '';
+}
+
 /* 保存所选视频到本地库，并绑定到指定内容行 */
 async function savePickedVideo(idx, file) {
   if (!currentContentItems[idx]) return;
@@ -1973,7 +2055,7 @@ function renderSummary() {
     byCoach[r.coach] = (byCoach[r.coach] || 0) + (r.duration || 0);
   });
 
-  // 成招个数：招式库中「训练日期」落在当月的条目数
+  // 录入招式：招式库中「训练日期」落在当月的条目数（训练总结卡片展示）
   const monthTricks = loadTrickLibrary().filter(t => (t.date || '').startsWith(prefix)).length;
   const starIdx = buildTrickStarIndex(); // 成招索引：用于明细里给成招的招式名加星标
   const maxVenue = Math.max(1, ...Object.values(byVenue));
@@ -1983,7 +2065,7 @@ function renderSummary() {
   html += '<div class="summary-grid">';
   html += '<div class="stat-card"><div class="stat-value c-accent">' + totalHours.toFixed(1) + '</div><div class="stat-label">总时长(小时)</div></div>';
   html += '<div class="stat-card"><div class="stat-value c-neon">' + sessions + '</div><div class="stat-label">训练次数</div></div>';
-  html += '<div class="stat-card"><div class="stat-value c-yellow">' + monthTricks + '</div><div class="stat-label">成招个数</div></div>';
+  html += '<div class="stat-card"><div class="stat-value c-yellow">' + monthTricks + '</div><div class="stat-label">录入招式</div></div>';
   html += '</div>';
 
   html += '<div class="section-label">按场地统计</div>';
@@ -2412,49 +2494,94 @@ function discardManualVideo() {
   _manVideoId = ''; _manVideoName = ''; _manVideoSize = 0;
 }
 
+/* ===== 日期「年 / 月 / 日」下拉 ===== */
+
+/* 年份范围：当前年前 15 年 ~ 今年（补录很久以前拍的招式也够用） */
+function manualYearRange() {
+  const y = new Date().getFullYear();
+  const out = [];
+  for (let v = y - 15; v <= y; v++) out.push(v);
+  return out;
+}
+
+/* 某年某月的天数；年月尚未选全时按 31 天算，允许先选「日」 */
+function daysInMonth(year, month) {
+  if (!year || !month) return 31;
+  return new Date(year, month, 0).getDate(); // month 传 1-12，取 0 号即上月末
+}
+
+/* 填充三个下拉。preset 传 {y,m,d} 时按此设置（用于自动填入拍摄时间）；
+   不传则沿用当前选择，仅按年月重建「日」。日超出当月天数时清空，避免出现「2月31日」 */
+function fillManualDateSelects(preset) {
+  const ySel = document.getElementById('trickManualYear');
+  const mSel = document.getElementById('trickManualMonth');
+  const dSel = document.getElementById('trickManualDay');
+  if (!ySel || !mSel || !dSel) return;
+  const norm = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? String(Math.trunc(n)) : ''; };
+  const wantY = preset ? norm(preset.y) : ySel.value;
+  const wantM = preset ? norm(preset.m) : mSel.value;
+  const wantD = preset ? norm(preset.d) : dSel.value;
+
+  if (!ySel.options.length) {
+    ySel.appendChild(new Option('年', ''));
+    manualYearRange().forEach(v => ySel.appendChild(new Option(v + '年', String(v))));
+  }
+  if (!mSel.options.length) {
+    mSel.appendChild(new Option('月', ''));
+    for (let m = 1; m <= 12; m++) mSel.appendChild(new Option(m + '月', String(m)));
+  }
+  ySel.value = wantY;
+  mSel.value = wantM;
+  const maxD = daysInMonth(Number(ySel.value) || 0, Number(mSel.value) || 0);
+  dSel.innerHTML = '';
+  dSel.appendChild(new Option('日', ''));
+  for (let d = 1; d <= maxD; d++) dSel.appendChild(new Option(d + '日', String(d)));
+  const di = Number(wantD);
+  dSel.value = (di >= 1 && di <= maxD) ? String(di) : '';
+  syncManualDateColor();
+}
+
+/* 未选的下拉用与「招式名称（必填）」提示文字相同的灰色，选了具体值则回到白色 */
+function syncManualDateColor() {
+  ['trickManualYear', 'trickManualMonth', 'trickManualDay'].forEach((id) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('is-empty', !el.value);
+  });
+}
+
+/* 读三个下拉拼出的日期：全空返回 ''（允许未填）；只填了一部分返回 null（调用方提示不完整） */
+function readManualDate() {
+  const y = document.getElementById('trickManualYear')?.value || '';
+  const m = document.getElementById('trickManualMonth')?.value || '';
+  const d = document.getElementById('trickManualDay')?.value || '';
+  if (!y && !m && !d) return '';
+  if (!y || !m || !d) return null;
+  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+}
+
 /* 收起表单并清空临时状态 */
 function resetTrickManual() {
   discardManualVideo();
   const box = document.getElementById('trickManualBox');
   const toggle = document.getElementById('trickManualToggle');
   const name = document.getElementById('trickManualName');
-  const date = document.getElementById('trickManualDate');
   const vi = document.getElementById('trickManualVideo');
   const vinfo = document.getElementById('trickManualVideoInfo');
-  const sug = document.getElementById('trickManualSuggest');
   if (name) name.value = '';
-  if (date) date.value = '';
+  fillManualDateSelects({ y: '', m: '', d: '' });
   if (vi) vi.value = '';
   if (vinfo) vinfo.textContent = '';
-  if (sug) sug.innerHTML = '';
   if (box) box.style.display = 'none';
   if (toggle) toggle.textContent = '＋ 直接录入招式';
-}
-
-/* 已有招式名快捷点选，避免同一招式写成两个分组（如 Kickflip / kickflip） */
-function renderTrickManualSuggest() {
-  const sug = document.getElementById('trickManualSuggest');
-  if (!sug) return;
-  sug.innerHTML = '';
-  groupTrickLibrary().map(g => g.name).slice(0, 24).forEach((n) => {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = n;
-    b.addEventListener('click', () => {
-      const inp = document.getElementById('trickManualName');
-      if (inp) inp.value = n;
-    });
-    sug.appendChild(b);
-  });
 }
 
 /* 提交录入：招式名必填，日期与视频可选 */
 function submitTrickManual() {
   const nameEl = document.getElementById('trickManualName');
-  const dateEl = document.getElementById('trickManualDate');
   const name = (nameEl?.value || '').trim();
   if (!name) { flashToast('⚠️ 请填写招式名称'); return; }
-  const date = (dateEl?.value || '').trim();
+  const date = readManualDate();
+  if (date === null) { flashToast('⚠️ 日期没选完整——年 / 月 / 日 需全选或全留空'); return; }
   if (!addTrickEntry(name, date, _manVideoId, 'manual')) {
     flashToast('⚠️ 录入失败，请重试');
     return; // 保留表单与已选视频，便于重试
@@ -2463,7 +2590,7 @@ function submitTrickManual() {
   _manVideoId = ''; _manVideoName = ''; _manVideoSize = 0;
   flashToast(date
     ? '✅ 已录入「' + name + '」· ' + formatTrickDate(date) + ' 的日历会显示 ⭐'
-    : '✅ 已录入「' + name + '」（未填日期，不计入日历星标与成招个数）');
+    : '✅ 已录入「' + name + '」（未填日期，不计入日历星标与「录入招式」统计）');
   resetTrickManual();
   renderTrickLibrary();
 }
@@ -2517,7 +2644,6 @@ function bindTrickLibrary() {
         resetTrickManual();          // 先清空，并回收上次未提交的视频
         manBox.style.display = 'flex';
         manToggle.textContent = '✕ 收起录入表单';
-        renderTrickManualSuggest();
         if (manName) manName.focus();
       } else {
         resetTrickManual();
@@ -2537,9 +2663,23 @@ function bindTrickLibrary() {
         await idbPutVideo(id, f);
         _manVideoId = id; _manVideoName = f.name || ''; _manVideoSize = f.size || 0;
         const codec = await detectMp4Codec(f);
+        // 尝试读取视频拍摄时间：仅在日期尚未填写时自动填入，已有选择不覆盖
+        const shot = await readMp4CreationTime(f);
+        let dateNote;
+        if (shot) {
+          if (readManualDate() === '') {
+            const p = shot.split('-');
+            fillManualDateSelects({ y: p[0], m: p[1], d: p[2] });
+            dateNote = ' ｜ 已按拍摄时间填入：' + formatTrickDate(shot);
+          } else {
+            dateNote = ' ｜ 视频拍摄时间：' + formatTrickDate(shot) + '（日期框已有选择，未覆盖）';
+          }
+        } else {
+          dateNote = ' ｜ 未能读取拍摄时间，请手动选择日期';
+        }
         if (manVideoInfo) {
           manVideoInfo.textContent = '已选择：' + (f.name || '视频') + ' · ' + formatBytes(f.size || 0)
-            + (codec ? ' · ' + codec : '');
+            + (codec ? ' · ' + codec : '') + dateNote;
         }
         if (codec === 'hvc1' || codec === 'hev1') flashToast('⚠️ 这是 HEVC 编码，部分浏览器无法播放');
       } catch (e) {
@@ -2548,6 +2688,15 @@ function bindTrickLibrary() {
       }
     });
   }
+
+  // 年月变化时重建「日」下拉：2 月自动变 28/29 天、小月 30 天，避免出现「2月31日」
+  const manYear = document.getElementById('trickManualYear');
+  const manMonth = document.getElementById('trickManualMonth');
+  const manDay = document.getElementById('trickManualDay');
+  const onManYMChange = () => fillManualDateSelects();
+  if (manYear) manYear.addEventListener('change', onManYMChange);
+  if (manMonth) manMonth.addEventListener('change', onManYMChange);
+  if (manDay) manDay.addEventListener('change', syncManualDateColor); // 「日」只影响未选/已选的文字颜色
 
   const inp = document.getElementById('trickSearchInput');
   const arrow = document.getElementById('trickSearchArrow');
