@@ -28,6 +28,8 @@
 
   /* Main grid */
   .main-grid { display: grid; grid-template-columns: 3fr 2fr; gap: 20px; }
+  /* 兜底：栅格子项默认 min-width:auto，内容过长会撑破列宽导致整页横向滚动 */
+  .main-grid > * { min-width: 0; }
   @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
 
   /* Glass panel */
@@ -115,9 +117,14 @@
   .form-textarea { resize: vertical; }
   .form-actions { display: flex; gap: 8px; padding-top: 4px; }
   .select-row { display: flex; gap: 8px; align-items: center; }
-  .select-row .form-select { flex: 1; }
+  /* min-width:0 解除 flex 子项「不得小于自身内容宽度」的限制——
+     Safari 会按最宽选项计算 <select> 的最小宽度，不加这行会把右侧「+」「×」顶出屏幕 */
+  .select-row .form-select { flex: 1; min-width: 0; }
+  .select-row > .btn, .select-row > .row-btn { flex-shrink: 0; }
   .add-box { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
-  .add-box .form-input { flex: 1; }
+  /* 同理：<input> 有默认宽度，不加 min-width:0 会把「添加」「取消」顶出去 */
+  .add-box .form-input { flex: 1; min-width: 0; }
+  .add-box > .btn { flex-shrink: 0; }
   .form-hint { font-size: 10px; color: rgba(255,255,255,0.4); font-weight: normal; }
   .btn-link { background: none; border: none; color: #ff6b6b; font-size: 10px; cursor: pointer; padding: 4px 0; margin-top: 4px; text-decoration: underline; }
   .btn-link:hover { color: #ff8888; }
@@ -223,6 +230,23 @@
   }
   .trick-date { font-weight: 700; }
   .trick-row-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+
+  /* 招式库：直接录入招式（补录很久以前、记不清日期的招式） */
+  .trick-manual {
+    display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; padding: 12px;
+    border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+    background: rgba(255,255,255,0.03); color-scheme: dark;
+  }
+  .trick-manual .video-btn { align-self: flex-start; }
+  .trick-suggest { display: flex; flex-wrap: wrap; gap: 6px; }
+  .trick-suggest:empty { display: none; }
+  .trick-suggest button {
+    font-family: inherit; font-size: 11px; padding: 4px 9px; border-radius: 999px; cursor: pointer;
+    background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); color: #fff;
+  }
+  .trick-suggest button:hover { background: rgba(0,224,255,0.15); }
+  .trick-manual-actions { display: flex; gap: 8px; }
+  .trick-manual-actions .btn { flex: 1; }
 
   /* Buttons */
   .btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; transition: all 0.2s; cursor: pointer; border: none; font-size: 14px; }
@@ -445,6 +469,24 @@
       <button type="button" id="trickSearchArrow" class="combo-arrow"><span class="combo-caret"></span></button>
       <div id="trickSearchList" class="combo-list" style="display:none;"></div>
     </div>
+
+    <!-- 直接录入招式：补录很久以前成的招（日期可留空，视频可选） -->
+    <button type="button" id="trickManualToggle" class="btn btn-ghost" style="width:100%;font-size:13px;margin-bottom:12px;">＋ 直接录入招式</button>
+    <div id="trickManualBox" class="trick-manual" style="display:none;">
+      <input id="trickManualName" class="form-input" type="text" placeholder="招式名称（必填）" autocomplete="off">
+      <div id="trickManualSuggest" class="trick-suggest"></div>
+      <input id="trickManualDate" class="form-input" type="date">
+      <div class="form-hint">日期可以留空——很久以前成的招、记不清日期时就空着（留空则不计入日历星标与月度成招个数）</div>
+      <label class="video-btn upload" id="trickManualVideoLabel">📹 选择视频（可选）
+        <input type="file" accept="video/*" class="video-file-input" id="trickManualVideo">
+      </label>
+      <div id="trickManualVideoInfo" class="form-hint"></div>
+      <div class="trick-manual-actions">
+        <button type="button" id="trickManualSubmit" class="btn btn-primary" style="font-size:13px;">录入</button>
+        <button type="button" id="trickManualCancel" class="btn btn-ghost" style="font-size:13px;">取消</button>
+      </div>
+    </div>
+
     <div id="trickBody" class="trick-body"></div>
   </div>
 </div>
@@ -537,11 +579,13 @@ function saveCustomContent(arr) {
 
 /* ===== 招式库 =====
    记录「某个训练招式在某天做成功了」的条目，复用原视频（不重复存视频本体）。
-   条目结构：{ id, name, date, videoId, createdAt } */
+   条目结构：{ id, name, date, videoId, source, createdAt }
+   - date / videoId 允许为空：手动补录很久以前、记不清日期的招式时两者可能都缺。
+   - source：'record' = 训练记录里点「录入招式库」，'manual' = 招式库内直接录入。 */
 function loadTrickLibrary() {
   try {
     const arr = JSON.parse(localStorage.getItem(TRICK_LIB_KEY) || '[]');
-    return Array.isArray(arr) ? arr.filter(t => t && t.videoId) : [];
+    return Array.isArray(arr) ? arr.filter(t => t && t.name) : [];
   } catch (e) { return []; }
 }
 function saveTrickLibrary(arr) {
@@ -561,22 +605,29 @@ function isVideoInLibrary(videoId) {
   if (!videoId) return false;
   return loadTrickLibrary().some(t => t.videoId === videoId);
 }
-function addTrickEntry(name, date, videoId) {
-  if (!videoId || !date) return false;
-  if (findTrickByVideo(date, videoId)) return false;
+/* 录入一条招式。date / videoId 均可为空（手动补录老招式时可能两者都缺）。
+   带 videoId 时仍需保证「同一日期 + 同一视频」不重复录入 */
+function addTrickEntry(name, date, videoId, source) {
+  const nm = (name || '').trim();
+  if (!nm) return false;
+  if (videoId && findTrickByVideo(date || '', videoId)) return false;
   const list = loadTrickLibrary();
   list.push({
     id: makeTrickId(),
-    name: (name || '').trim(),
-    date: date,
-    videoId: videoId,
+    name: nm,
+    date: date || '',
+    videoId: videoId || '',
+    source: source || 'record',
     createdAt: Date.now()
   });
   return saveTrickLibrary(list);
 }
 function removeTrickEntry(id) {
   if (!id) return;
+  const entry = loadTrickLibrary().find(t => t.id === id);
   saveTrickLibrary(loadTrickLibrary().filter(t => t.id !== id));
+  // 手动录入的条目若带视频，其视频只被库引用；删除条目后回收视频本体，避免占用本机空间
+  if (entry && entry.source === 'manual' && entry.videoId) deleteVideoIfUnused(entry.videoId);
 }
 /* 删除视频本体：若该视频已被招式库引用则跳过，保护「成功视频」不被连带删除 */
 function deleteVideoIfUnused(id) {
@@ -944,8 +995,10 @@ function renderCalendar() {
 
 /* 把一条记录拆成日历格／特写共用的三行文本：
    1) 场地（含时长，如「五棵松 1.5h」）2) 教练 3)「📹N + 招式名」
-   任一行为空则返回空串，由调用方决定是否渲染该行 */
-function dayLinesOf(rec) {
+   任一行为空则返回空串，由调用方决定是否渲染该行。
+   传入 date 与 starIdx 时，已成招（当天录入招式库）的招式名后跟 ⭐，
+   与「训练招式明细」口径一致；日历格不传，保持紧凑 */
+function dayLinesOf(rec, date, starIdx) {
   const dur = (rec.duration === undefined || rec.duration === null || String(rec.duration).trim() === '')
     ? '' : String(rec.duration).trim() + 'h';
   const venue = [rec.venue, dur].filter(Boolean).join(' ').trim();
@@ -955,6 +1008,7 @@ function dayLinesOf(rec) {
     .map(normalizeContentItem)
     .map(x => (x.name || '').trim())
     .filter(Boolean)
+    .map(n => n + (starIdx && isTrickStarred(starIdx, date, n) ? ' ⭐' : ''))
     .join('、');
   const trick = [vCount > 0 ? '📹' + vCount : '', trickNames].filter(Boolean).join(' ').trim();
   return { venue, coach, trick };
@@ -1071,7 +1125,8 @@ function openDayZoom(key, fromRect) {
   card.appendChild(head);
 
   // 三行完整内容（与日历格同序同色，仅去掉截断）
-  const lines = dayLinesOf(rec);
+  // 成招的招式名后跟 ⭐，口径与「训练招式明细」一致
+  const lines = dayLinesOf(rec, key, buildTrickStarIndex());
   const tags = document.createElement('div');
   tags.className = 'zoom-tags';
   const pushTag = (text, bg, color) => {
@@ -2196,7 +2251,8 @@ function renderTrickLibrary() {
   const q = (document.getElementById('trickSearchInput')?.value || '').trim();
   const all = groupTrickLibrary();
   if (!all.length) {
-    box.innerHTML = '<div class="empty-state">招式库还是空的<br>在训练记录里给成功的视频点「⭐ 录入招式库」</div>';
+    box.innerHTML = '<div class="empty-state">招式库还是空的<br>在训练记录里给成功的视频点「⭐ 录入招式库」，'
+      + '<br>也可以点上方「＋ 直接录入招式」把以前成的招补进来</div>';
     return;
   }
   const found = searchTrickLibrary(q);
@@ -2210,14 +2266,15 @@ function renderTrickLibrary() {
   found.groups.forEach((g) => {
     // 有检索关键字时自动展开匹配到的招式
     html += '<div class="trick-group' + (q ? ' open' : '') + '">';
+    // 组头显示最近一次的录入日期；没有日期的显示「日期未记录」
     html += '<div class="trick-group-head"><span>⭐ ' + g.name + '</span>'
-      + '<span class="trick-group-count">成功 ' + g.items.length + ' 次 · 最近 ' + formatTrickDate(g.lastDate) + '</span></div>';
+      + '<span class="trick-group-count">' + (g.lastDate ? formatTrickDate(g.lastDate) + ' 录入' : '日期未记录') + '</span></div>';
     html += '<div class="trick-group-body">';
     g.items.forEach((t) => {
       html += '<div class="trick-row">'
-        + '<span class="trick-date">' + formatTrickDate(t.date) + '</span>'
+        + '<span class="trick-date">' + (t.date ? formatTrickDate(t.date) : '日期未记录') + '</span>'
         + '<span class="trick-row-btns">'
-        + '<button type="button" class="video-btn" data-video-id="' + t.videoId + '">▶ 播放</button>'
+        + (t.videoId ? '<button type="button" class="video-btn" data-video-id="' + t.videoId + '">▶ 播放</button>' : '')
         + '<button type="button" class="video-btn remove" data-del-entry="' + t.id + '">🗑️ 删除此招式</button>'
         + '</span></div>'
         + '<div class="trick-player"></div>';
@@ -2343,12 +2400,82 @@ function renderTrickOptions(keyword) {
   });
 }
 
+/* ===== 招式库：直接录入招式（补录很久以前、记不清日期的招式） =====
+   临时状态：用户已存入库、但尚未提交的视频。提交成功即归条目所有；
+   取消/关闭浮层时回收，避免在本机留下孤儿视频。 */
+let _manVideoId = '';
+let _manVideoName = '';
+let _manVideoSize = 0;
+
+function discardManualVideo() {
+  if (_manVideoId) idbDeleteVideo(_manVideoId);
+  _manVideoId = ''; _manVideoName = ''; _manVideoSize = 0;
+}
+
+/* 收起表单并清空临时状态 */
+function resetTrickManual() {
+  discardManualVideo();
+  const box = document.getElementById('trickManualBox');
+  const toggle = document.getElementById('trickManualToggle');
+  const name = document.getElementById('trickManualName');
+  const date = document.getElementById('trickManualDate');
+  const vi = document.getElementById('trickManualVideo');
+  const vinfo = document.getElementById('trickManualVideoInfo');
+  const sug = document.getElementById('trickManualSuggest');
+  if (name) name.value = '';
+  if (date) date.value = '';
+  if (vi) vi.value = '';
+  if (vinfo) vinfo.textContent = '';
+  if (sug) sug.innerHTML = '';
+  if (box) box.style.display = 'none';
+  if (toggle) toggle.textContent = '＋ 直接录入招式';
+}
+
+/* 已有招式名快捷点选，避免同一招式写成两个分组（如 Kickflip / kickflip） */
+function renderTrickManualSuggest() {
+  const sug = document.getElementById('trickManualSuggest');
+  if (!sug) return;
+  sug.innerHTML = '';
+  groupTrickLibrary().map(g => g.name).slice(0, 24).forEach((n) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.textContent = n;
+    b.addEventListener('click', () => {
+      const inp = document.getElementById('trickManualName');
+      if (inp) inp.value = n;
+    });
+    sug.appendChild(b);
+  });
+}
+
+/* 提交录入：招式名必填，日期与视频可选 */
+function submitTrickManual() {
+  const nameEl = document.getElementById('trickManualName');
+  const dateEl = document.getElementById('trickManualDate');
+  const name = (nameEl?.value || '').trim();
+  if (!name) { flashToast('⚠️ 请填写招式名称'); return; }
+  const date = (dateEl?.value || '').trim();
+  if (!addTrickEntry(name, date, _manVideoId, 'manual')) {
+    flashToast('⚠️ 录入失败，请重试');
+    return; // 保留表单与已选视频，便于重试
+  }
+  // 提交成功后视频归该条目所有，不再回收
+  _manVideoId = ''; _manVideoName = ''; _manVideoSize = 0;
+  flashToast(date
+    ? '✅ 已录入「' + name + '」· ' + formatTrickDate(date) + ' 的日历会显示 ⭐'
+    : '✅ 已录入「' + name + '」（未填日期，不计入日历星标与成招个数）');
+  resetTrickManual();
+  renderTrickLibrary();
+}
+
 function openTrickLibrary() {
   const ov = document.getElementById('trickOverlay');
   if (!ov) return;
   ov.style.display = 'flex';
   const inp = document.getElementById('trickSearchInput');
   if (inp) inp.value = '';
+  // 每次打开都收起「直接录入招式」表单，避免上次的残留状态
+  resetTrickManual();
   renderTrickLibrary();
 }
 
@@ -2359,6 +2486,8 @@ function closeTrickLibrary() {
   revokeLibUrls();
   const listEl = document.getElementById('trickSearchList');
   if (listEl) listEl.style.display = 'none';
+  // 收起录入表单并回收未提交的视频
+  resetTrickManual();
 }
 
 function bindTrickLibrary() {
@@ -2373,6 +2502,52 @@ function bindTrickLibrary() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && isTrickPanelOpen()) closeTrickLibrary();
   });
+
+  // ---- 招式库内「直接录入招式」 ----
+  const manToggle = document.getElementById('trickManualToggle');
+  const manBox = document.getElementById('trickManualBox');
+  const manName = document.getElementById('trickManualName');
+  const manVideo = document.getElementById('trickManualVideo');
+  const manVideoInfo = document.getElementById('trickManualVideoInfo');
+  const manSubmit = document.getElementById('trickManualSubmit');
+  const manCancel = document.getElementById('trickManualCancel');
+  if (manToggle && manBox && manSubmit && manCancel) {
+    manToggle.addEventListener('click', () => {
+      if (manBox.style.display === 'none') {
+        resetTrickManual();          // 先清空，并回收上次未提交的视频
+        manBox.style.display = 'flex';
+        manToggle.textContent = '✕ 收起录入表单';
+        renderTrickManualSuggest();
+        if (manName) manName.focus();
+      } else {
+        resetTrickManual();
+      }
+    });
+    manCancel.addEventListener('click', resetTrickManual);
+    manSubmit.addEventListener('click', submitTrickManual);
+  }
+  if (manVideo) {
+    manVideo.addEventListener('change', async () => {
+      const f = manVideo.files && manVideo.files[0];
+      manVideo.value = '';           // 允许重复选择同一文件
+      if (!f) return;
+      discardManualVideo();          // 重新选择时先回收上一个
+      try {
+        const id = genVideoId();
+        await idbPutVideo(id, f);
+        _manVideoId = id; _manVideoName = f.name || ''; _manVideoSize = f.size || 0;
+        const codec = await detectMp4Codec(f);
+        if (manVideoInfo) {
+          manVideoInfo.textContent = '已选择：' + (f.name || '视频') + ' · ' + formatBytes(f.size || 0)
+            + (codec ? ' · ' + codec : '');
+        }
+        if (codec === 'hvc1' || codec === 'hev1') flashToast('⚠️ 这是 HEVC 编码，部分浏览器无法播放');
+      } catch (e) {
+        const msg = (e && e.name === 'QuotaExceededError') ? '本机存储空间不足' : ('保存失败：' + (e.message || '未知错误'));
+        flashToast('❌ ' + msg);
+      }
+    });
+  }
 
   const inp = document.getElementById('trickSearchInput');
   const arrow = document.getElementById('trickSearchArrow');
