@@ -23,7 +23,9 @@
   @media (max-width: 768px) { .container { padding: 12px; } }
 
   /* Header */
-  .header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
+  /* position / z-index：顶栏的「年 / 月」下拉浮层要盖过下面的日历卡片——
+     主页面卡片都带 backdrop-filter（各自独立成层），不抬高顶栏就会被压在下面 */
+  .header { position: relative; z-index: 10; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 24px; }
   .header-left { display: flex; align-items: center; gap: 12px; }
   .header-icon { font-size: 30px; }
   .header-title {
@@ -81,6 +83,12 @@
   .day-head { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
   .day-head .day-num { margin-bottom: 0; }
   .day-star { font-size: 11px; line-height: 1; }
+  /* 刷课标记：不占用日期行，改为整格亮黄边框（覆盖「有记录」的橙色边框）。
+     外光晕只是视觉加粗，不参与布局，因此日期与 ⭐ 的排布完全不受影响 */
+  .cal-cell.has-makeup {
+    border-color: #ffd60a;
+    box-shadow: 0 0 0 1px rgba(255,214,10,0.45);
+  }
 
   .tag {
     display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 999px;
@@ -120,6 +128,9 @@
     color: #fff; border-radius: 8px; padding: 8px 12px; width: 100%;
     outline: none; transition: border 0.2s; font-size: 13px; font-family: inherit;
   }
+  /* 下拉框用品牌青边框，与灰白边框的输入框区分开（输入框保持灰白不变）。
+     自绘下拉接管后 .form-select 本身不可见，这里主要兜住未被接管的原生下拉 */
+  .form-select { border-color: rgba(0,224,255,0.45); }
   .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: #00e0ff; }
   /* 未填写 / 未选择统一为固定灰度，选定后为白色；与自绘下拉的未选态 .sd-btn.is-empty 用同一个值。
      opacity:1 用于拉平各浏览器对 placeholder 默认半透明的不同处理（iOS 与 Chrome 表现不一致）。 */
@@ -130,6 +141,16 @@
   .form-select option { background: #1a1a2e; color: #fff; }
   .form-textarea { resize: vertical; }
   .form-actions { display: flex; gap: 8px; padding-top: 4px; }
+  /* 刷课：否 / 是两个小按钮，选中的那个高亮 */
+  .makeup-toggle { display: flex; gap: 8px; }
+  .makeup-btn {
+    min-width: 64px; padding: 8px 16px; cursor: pointer;
+    background: rgba(15,15,26,0.6); border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.6); border-radius: 8px;
+    font-size: 13px; font-family: inherit;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .makeup-btn.is-on { background: rgba(198,255,0,0.16); border-color: #c6ff00; color: #c6ff00; font-weight: 700; }
   .select-row { display: flex; gap: 8px; align-items: center; }
   /* min-width:0 解除 flex 子项「不得小于自身内容宽度」的限制——
      Safari 会按最宽选项计算 <select> 的最小宽度，不加这行会把右侧「+」「×」顶出屏幕 */
@@ -171,7 +192,7 @@
   }
   .combo-list {
     position: absolute; left: 0; right: 0; top: calc(100% + 2px);
-    background: #1a1a2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+    background: #1a1a2e; border: 1px solid rgba(0,224,255,0.45); border-radius: 8px;
     max-height: 180px; overflow-y: auto; z-index: 30; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
     /* 允许纵向滑动：移动端可滚动查看候选而不误选 */
     touch-action: pan-y; -webkit-overflow-scrolling: touch;
@@ -189,12 +210,19 @@
   /* 顶栏「年 / 月」按内容取宽，不参与 flex 拉伸 */
   .sd-wrap.sd-auto { flex: 0 0 auto; }
   .sd-wrap > select { display: block; opacity: 0; pointer-events: none; }
+  /* 浮层展开时临时抬高所在卡片：主页面每张卡片都带 backdrop-filter，各自独立成一层，
+     不抬高的话浮层（z-index 40）也越不过排在后面的兄弟卡片——「训练招式检索」的浮层
+     被「训练总结」卡片盖住就是这个原因。收起浮层时由 JS 移除本类 */
+  .sd-host-raised { position: relative; z-index: 5; }
   .sd-btn {
     position: absolute; inset: 0; width: 100%; display: flex; align-items: center;
     justify-content: space-between; gap: 8px; cursor: pointer; text-align: left;
-    background: rgba(15,15,26,0.6); border: 1px solid rgba(255,255,255,0.12); color: #fff;
+    background: rgba(15,15,26,0.6); border: 1px solid rgba(0,224,255,0.45); color: #fff;
     border-radius: 8px; padding: 8px 12px; font-size: 13px; font-family: inherit;
   }
+  /* 悬停 / 聚焦 / 展开时青色更亮，明确回应「这里可以点」 */
+  .sd-btn:hover, .sd-btn:focus { border-color: rgba(0,224,255,0.75); }
+  .sd-btn.is-open { border-color: #00e0ff; }
   /* 未选择时与「招式名称（必填）」提示文字同一灰度 */
   .sd-btn.is-empty { color: rgba(255,255,255,0.45); }
   .sd-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -205,7 +233,7 @@
   }
   .sd-list {
     position: absolute; left: 0; right: 0; top: calc(100% + 2px);
-    background: #1a1a2e; border: 1px solid rgba(255,255,255,0.15); border-radius: 8px;
+    background: #1a1a2e; border: 1px solid rgba(0,224,255,0.45); border-radius: 8px;
     max-height: 180px; overflow-y: auto; z-index: 40; box-shadow: 0 8px 24px rgba(0,0,0,0.45);
     /* 允许纵向滑动：移动端可滚动查看候选项而不误选 */
     touch-action: pan-y; -webkit-overflow-scrolling: touch;
@@ -315,7 +343,8 @@
   .empty-state { text-align: center; padding: 32px 0; color: rgba(255,255,255,0.4); font-size: 13px; line-height: 1.6; }
 
   /* Summary */
-  .summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+  /* 四个卡片（总时长 / 训练次数 / 录入招式 / 刷课总时长）排成两行两列，窄屏也整齐 */
+  .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
   .stat-card {
     background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
     border: 1px solid rgba(255,255,255,0.08);
@@ -326,6 +355,7 @@
   .c-accent { color: #ff5a3c; }
   .c-neon { color: #00e0ff; }
   .c-yellow { color: #ffd60a; }
+  .c-lime { color: #c6ff00; }
 
   .section-label { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 600; margin-bottom: 8px; margin-top: 16px; }
   .section-label:first-of-type { margin-top: 0; }
@@ -372,6 +402,8 @@
     transition: opacity 0.22s ease, visibility 0.22s;
   }
   #dayZoomOverlay.open { opacity: 1; visibility: visible; pointer-events: auto; }
+  /* 刷课的日子：特写卡片边框与日历格保持一致 */
+  #dayZoomCard.makeup { border-color: #ffd60a; }
   #dayZoomCard {
     width: 100%; max-width: 360px; box-sizing: border-box;
     padding: 16px; border-radius: 16px;
@@ -489,6 +521,17 @@
             <label class="form-label hl">训练时长（小时）</label>
             <input id="fDuration" class="form-input" type="number" step="0.5" min="0" placeholder="例如 1.5">
           </div>
+          <div class="form-group">
+            <label class="form-label hl">刷课</label>
+            <div class="makeup-toggle" id="makeupToggle">
+              <button type="button" class="makeup-btn is-on" data-makeup="0">否</button>
+              <button type="button" class="makeup-btn" data-makeup="1">是</button>
+            </div>
+          </div>
+          <div class="form-group" id="makeupHoursGroup" style="display:none;">
+            <label class="form-label hl">刷课时长（小时）</label>
+            <input id="fMakeupHours" class="form-input" type="number" step="0.5" min="0" placeholder="例如 1.5">
+          </div>
           <div class="form-actions">
             <button type="button" id="saveBtn" class="btn btn-primary" style="flex:1;">💾 保存</button>
             <button type="button" id="deleteBtn" class="btn btn-danger" style="display: none;">删除</button>
@@ -542,7 +585,7 @@
         <select id="trickManualMonth" class="form-select"></select>
         <select id="trickManualDay" class="form-select"></select>
       </div>
-      <div class="form-hint">日期可以留空——很久以前成的招、记不清日期时就空着（留空则不计入日历星标与「录入招式」统计）</div>
+      <div class="form-hint">日期从左往右填，可以只填到「年」或「年+月」：记不清哪天的就把「日」空着，记不清哪月的再把「月」空掉。日历星标只给精确到「日」的条目；填到「年+月」会计入该月的「录入招式」统计，只填「年」不计入月份统计。</div>
       <label class="video-btn upload" id="trickManualVideoLabel">📹 选择视频（可选）
         <input type="file" accept="video/*" class="video-file-input" id="trickManualVideo">
       </label>
@@ -704,6 +747,7 @@ function deleteVideoIfUnused(id) {
 
 let currentYear, currentMonth, selectedDate = null;
 let currentContentItems = []; // 当前编辑中的训练招式列表
+let _makeupChoice = false;    // 表单「刷课」的当前选择（false = 否，默认不刷课）
 
 /* ===== 存储层：内存为源、localStorage 为备 =====
    设计原则：
@@ -1037,10 +1081,11 @@ function renderCalendar() {
   const records = loadRecords();
   // 先汇总招式库中「训练日期」落在当月的日期集合，供格子显示成招星标
   const prefix = currentYear + '-' + String(currentMonth + 1).padStart(2, '0');
+  // 只收精确到「日」（'YYYY-MM-DD'）的条目：只填到年 / 年+月的定位不到某一天，不打日历星标
   _trickDateSet = new Set(
     loadTrickLibrary()
       .map(t => t.date || '')
-      .filter(d => d.startsWith(prefix))
+      .filter(d => d.length === 10 && d.startsWith(prefix))
   );
   const firstDay = new Date(currentYear, currentMonth, 1).getDay();
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
@@ -1111,6 +1156,8 @@ function buildCell(day, monthOffset, isOther) {
 
   if (rec) {
     cell.classList.add('has-plan');
+    // 刷课的日子整格换成亮黄边框：不占日期行，⭐ 的位置与「没刷课」的日子完全一致
+    if (rec.makeup) cell.classList.add('has-makeup');
     // 日历格三行固定顺序：第 1 行场地（含时长）、第 2 行教练、第 3 行「视频标记 + 招式」
     // 任一行内容为空则不渲染该行，避免出现空白胶囊
     const lines = dayLinesOf(rec);
@@ -1178,6 +1225,8 @@ function openDayZoom(key, fromRect) {
 
   const [y, m, d] = key.split('-');
   card.innerHTML = '';
+  // 刷课的日子：特写卡片边框与日历格保持一致（每次打开都要按当前记录重设）
+  card.classList.toggle('makeup', !!rec.makeup);
 
   const head = document.createElement('div');
   head.className = 'zoom-head';
@@ -1206,6 +1255,8 @@ function openDayZoom(key, fromRect) {
   if (lines.venue) pushTag(lines.venue, 'rgba(255,255,255,0.15)');
   if (lines.coach) pushTag(lines.coach, coachColor(lines.coach), '#000');
   if (lines.trick) pushTag(lines.trick, 'rgba(0,224,255,0.2)');
+  // 刷课行：与记录里的刷课时长一致，未刷课时不显示
+  if (rec.makeup && rec.makeupHours > 0) pushTag('刷课 ' + rec.makeupHours + ' 小时', 'rgba(255,214,10,0.18)', '#ffd60a');
   if (!tags.childElementCount) {
     const empty = document.createElement('div');
     empty.className = 'zoom-empty';
@@ -1286,6 +1337,17 @@ function bindDayZoom() {
 /* =========================
    详情面板
    ========================= */
+/* 「刷课」：否 / 是两个按钮的状态与「刷课时长」输入框的显隐。
+   只负责按钮状态与显隐，不碰输入框里的数值（切换日期时由 renderDetail 直接赋值） */
+function setMakeupChoice(on) {
+  _makeupChoice = !!on;
+  document.querySelectorAll('#makeupToggle .makeup-btn').forEach((b) => {
+    b.classList.toggle('is-on', (b.dataset.makeup === '1') === _makeupChoice);
+  });
+  const grp = document.getElementById('makeupHoursGroup');
+  if (grp) grp.style.display = _makeupChoice ? '' : 'none';
+}
+
 function renderDetail() {
   const title = document.getElementById('detailDate');
   const empty = document.getElementById('detailEmpty');
@@ -1316,6 +1378,10 @@ function renderDetail() {
   }
   renderContentRows();
   document.getElementById('fDuration').value = rec ? rec.duration : '';
+  // 刷课：旧记录没有 makeup 字段，一律按「否」处理；未刷课时清空刷课时长输入框
+  const hasMakeup = !!(rec && rec.makeup);
+  setMakeupChoice(hasMakeup);
+  document.getElementById('fMakeupHours').value = (hasMakeup && rec.makeupHours) ? rec.makeupHours : '';
   delBtn.style.display = rec ? '' : 'none';
   // 表单显示后（此时才有真实布局）对齐三处「删除此自定义」
   alignDeleteLinks();
@@ -1430,9 +1496,17 @@ const SMALL_DROPDOWN_IDS = [
   'trickManualYear', 'trickManualMonth', 'trickManualDay'
 ];
 let _openSdList = null; // 当前展开的浮层
+let _raisedHost = null; // 当前被抬高 z-index 的卡片（.glass / .overlay-panel），收起时还原
 
 function closeSmallDropdown() {
-  if (_openSdList) { _openSdList.style.display = 'none'; _openSdList = null; }
+  if (_openSdList) {
+    _openSdList.style.display = 'none';
+    const btn = _openSdList.parentElement && _openSdList.parentElement.querySelector('.sd-btn');
+    if (btn) btn.classList.remove('is-open');
+    _openSdList = null;
+  }
+  // 卡片抬高状态一并还原，避免浮层收起后仍压着后面的卡片
+  if (_raisedHost) { _raisedHost.classList.remove('sd-host-raised'); _raisedHost = null; }
 }
 
 /* 最近的可滚动祖先（没有则按窗口）的可视范围，用于判断浮层朝下还是朝上展开 */
@@ -1496,6 +1570,12 @@ function toggleSmallDropdown(sel) {
     list.appendChild(item);
   });
   list.style.display = '';
+  // 展开态：按钮描边变亮；并把所在卡片抬到最上层——主页面每张卡片都有 backdrop-filter（各自独立成层），
+  // 不抬高的话浮层（z-index 40）也越不过排在后面的兄弟卡片，「训练招式检索」就会被「训练总结」盖住
+  const openBtn = wrap.querySelector('.sd-btn');
+  if (openBtn) openBtn.classList.add('is-open');
+  const host = wrap.closest('.glass, .overlay-panel');
+  if (host) { host.classList.add('sd-host-raised'); _raisedHost = host; }
   // 下方空间不足、且上方更宽裕时改为向上展开
   const box = wrap.getBoundingClientRect();
   const clip = sdClipRect(wrap);
@@ -2153,6 +2233,10 @@ function removeContentRow(idx) {
 }
 
 function bindForm() {
+  // 「刷课」否 / 是：切换按钮高亮与「刷课时长」输入框的显隐
+  document.querySelectorAll('#makeupToggle .makeup-btn').forEach((btn) => {
+    btn.addEventListener('click', () => setMakeupChoice(btn.dataset.makeup === '1'));
+  });
   document.getElementById('saveBtn').addEventListener('click', () => {
     try {
       if (!selectedDate) { flashToast('⚠️ 请先选择日期'); return; }
@@ -2169,9 +2253,13 @@ function bindForm() {
         }))
         .filter(it => it.name.length > 0 || it.videoId);
       const duration = parseFloat(document.getElementById('fDuration').value);
+      // 刷课：选「是」时刷课时长必填且需大于 0（与训练时长同一套校验口径）
+      const makeup = _makeupChoice === true;
+      const makeupHours = parseFloat(document.getElementById('fMakeupHours').value);
 
       if (!venue) { flashToast('⚠️ 请选择场地'); return; }
       if (!duration || duration <= 0) { flashToast('⚠️ 请填写有效的训练时长'); return; }
+      if (makeup && (!makeupHours || makeupHours <= 0)) { flashToast('⚠️ 请填写有效的刷课时长'); return; }
 
       const records = loadRecords();
       const prev = records[selectedDate];
@@ -2179,7 +2267,12 @@ function bindForm() {
       const newIds = new Set(content.map(it => it.videoId).filter(Boolean));
       collectVideoIds(prev && prev.content).forEach(id => { if (!newIds.has(id)) deleteVideoIfUnused(id); });
 
-      records[selectedDate] = { coach, venue, content, duration };
+      // makeupHours 只在刷课时有意义：未刷课一律存 0，避免污染统计口径
+      records[selectedDate] = {
+        coach, venue, content, duration,
+        makeup: makeup,
+        makeupHours: makeup ? makeupHours : 0
+      };
       const persisted = saveRecords(records);
 
       renderAll();
@@ -2252,17 +2345,29 @@ function renderSummary() {
     byCoach[r.coach] = (byCoach[r.coach] || 0) + (r.duration || 0);
   });
 
+  // 刷课：只统计「选了是」且时长大于 0 的记录，并按教练汇总（刷课跟着教练走）
+  const totalMakeup = monthRecs.reduce((s, r) => s + (r.makeup ? (r.makeupHours || 0) : 0), 0);
+  const byCoachMakeup = {};
+  monthRecs.forEach(r => {
+    if (!r.makeup) return;
+    const h = r.makeupHours || 0;
+    if (h <= 0) return;
+    byCoachMakeup[r.coach] = (byCoachMakeup[r.coach] || 0) + h;
+  });
+
   // 录入招式：招式库中「训练日期」落在当月的条目数（训练总结卡片展示）
   const monthTricks = loadTrickLibrary().filter(t => (t.date || '').startsWith(prefix)).length;
   const starIdx = buildTrickStarIndex(); // 成招索引：用于明细里给成招的招式名加星标
   const maxVenue = Math.max(1, ...Object.values(byVenue));
   const maxCoach = Math.max(1, ...Object.values(byCoach));
+  const maxCoachMakeup = Math.max(1, ...Object.values(byCoachMakeup));
 
   let html = '';
   html += '<div class="summary-grid">';
   html += '<div class="stat-card"><div class="stat-value c-accent">' + totalHours.toFixed(1) + '</div><div class="stat-label">总时长(小时)</div></div>';
   html += '<div class="stat-card"><div class="stat-value c-neon">' + sessions + '</div><div class="stat-label">训练次数</div></div>';
   html += '<div class="stat-card"><div class="stat-value c-yellow">' + monthTricks + '</div><div class="stat-label">录入招式</div></div>';
+  html += '<div class="stat-card"><div class="stat-value c-lime">' + totalMakeup.toFixed(1) + '</div><div class="stat-label">刷课总时长(小时)</div></div>';
   html += '</div>';
 
   html += '<div class="section-label">按场地统计</div>';
@@ -2285,6 +2390,16 @@ function renderSummary() {
     });
   }
 
+  html += '<div class="section-label">按教练统计刷课(h)</div>';
+  if (Object.keys(byCoachMakeup).length === 0) {
+    html += '<div style="font-size:13px;color:rgba(255,255,255,0.3);">本月没有刷课记录</div>';
+  } else {
+    Object.entries(byCoachMakeup).sort((a,b)=>b[1]-a[1]).forEach(([c, h], i) => {
+      const color = COACH_BAR_PALETTE[i % COACH_BAR_PALETTE.length];
+      html += '<div class="bar-row"><div class="bar-row-head"><span>' + c + '</span><span class="bar-row-val">' + h.toFixed(1) + ' h</span></div><div class="bar"><div class="bar-fill" style="width:' + (h/maxCoachMakeup*100).toFixed(0) + '%;background:' + color + '"></div></div></div>';
+    });
+  }
+
   html += '<div class="section-label">训练招式明细</div>';
   if (monthRecs.length === 0) {
     html += '<div style="font-size:13px;color:rgba(255,255,255,0.3);">本月还没有训练记录，去日历里添加吧！</div>';
@@ -2293,7 +2408,9 @@ function renderSummary() {
     monthRecs.forEach(r => {
       const day = r.date.slice(8);
       const contentText = contentTextOf(r.content, r.date, starIdx);
-      html += '<div class="detail-item"><div class="detail-head"><span class="detail-day">' + (+day) + '日</span><span class="detail-meta">' + r.coach + ' · ' + r.venue + '</span></div><div class="detail-content">' + (contentText || '（未填写内容）') + '</div><div class="detail-duration">' + r.duration + ' 小时</div></div>';
+      // 刷课的那天在时长后追加标注，未刷课的保持原样
+      const makeupText = (r.makeup && r.makeupHours > 0) ? ' · 刷课 ' + r.makeupHours + ' 小时' : '';
+      html += '<div class="detail-item"><div class="detail-head"><span class="detail-day">' + (+day) + '日</span><span class="detail-meta">' + r.coach + ' · ' + r.venue + '</span></div><div class="detail-content">' + (contentText || '（未填写内容）') + '</div><div class="detail-duration">' + r.duration + ' 小时' + makeupText + '</div></div>';
     });
     html += '</div>';
   }
@@ -2517,10 +2634,14 @@ function searchTrickLibrary(query) {
   return { fuzzy: fuzzy, groups: groups };
 }
 
+/* 招式库日期显示。日期支持三种精度：只填年 '2024'、年+月 '2024-05'、年月日 '2024-05-03'，
+   分别显示为「2024年」「2024年5月」「2024年5月3日」；空值返回空串 */
 function formatTrickDate(date) {
-  const p = (date || '').split('-');
-  if (p.length !== 3) return date || '';
-  return p[0] + '年' + (+p[1]) + '月' + (+p[2]) + '日';
+  const p = (date || '').split('-').filter(Boolean);
+  if (p.length === 1) return p[0] + '年';
+  if (p.length === 2) return p[0] + '年' + (+p[1]) + '月';
+  if (p.length >= 3) return p[0] + '年' + (+p[1]) + '月' + (+p[2]) + '日';
+  return date || '';
 }
 
 function renderTrickLibrary() {
@@ -2739,14 +2860,19 @@ function fillManualDateSelects(preset) {
   refreshSmallDropdowns();
 }
 
-/* 读三个下拉拼出的日期：全空返回 ''（允许未填）；只填了一部分返回 null（调用方提示不完整） */
+/* 读三个下拉拼出的日期。支持三种精度，从左往右逐级填、不能跳级：
+   全空 → ''（允许不填）；只填年 → '2024'；年+月 → '2024-05'；年月日 → '2024-05-03'。
+   填了「月」却没填「年」、或填了「日」却没填「月」，返回 null（调用方提示不完整） */
 function readManualDate() {
   const y = document.getElementById('trickManualYear')?.value || '';
   const m = document.getElementById('trickManualMonth')?.value || '';
   const d = document.getElementById('trickManualDay')?.value || '';
   if (!y && !m && !d) return '';
-  if (!y || !m || !d) return null;
-  return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  if (m && !y) return null; // 只填「月」：不知道是哪一年
+  if (d && !m) return null; // 只填「日」（含「有年有日、缺月」）：不知道是哪个月
+  if (d) return y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+  if (m) return y + '-' + String(m).padStart(2, '0');
+  return y;
 }
 
 /* 收起表单并清空临时状态 */
@@ -2771,15 +2897,17 @@ function submitTrickManual() {
   const name = (nameEl?.value || '').trim();
   if (!name) { flashToast('⚠️ 请填写招式名称'); return; }
   const date = readManualDate();
-  if (date === null) { flashToast('⚠️ 日期没选完整——年 / 月 / 日 需全选或全留空'); return; }
+  if (date === null) { flashToast('⚠️ 日期要从「年」开始逐级填：填了月要选年，填了日要选月'); return; }
   if (!addTrickEntry(name, date, _manVideoId, 'manual')) {
     flashToast('⚠️ 录入失败，请重试');
     return; // 保留表单与已选视频，便于重试
   }
   // 提交成功后视频归该条目所有，不再回收
   _manVideoId = ''; _manVideoName = ''; _manVideoSize = 0;
+  // 只有精确到「日」的条目才会在日历打星标；只填到年 / 年+月的按各自口径说明
   flashToast(date
-    ? '✅ 已录入「' + name + '」· ' + formatTrickDate(date) + ' 的日历会显示 ⭐'
+    ? '✅ 已录入「' + name + '」· ' + formatTrickDate(date)
+      + (date.split('-').length === 3 ? ' 的日历会显示 ⭐' : '（未精确到「日」，不会有日历星标）')
     : '✅ 已录入「' + name + '」（未填日期，不计入日历星标与「录入招式」统计）');
   resetTrickManual();
   renderTrickLibrary();
