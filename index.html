@@ -415,7 +415,7 @@
   <div class="overlay-panel" style="max-width:420px;">
     <h3 class="panel-title" style="margin:0 0 12px;">⚠️ 确认清空历史数据？</h3>
     <p style="font-size:13px;line-height:1.6;color:rgba(255,255,255,0.75);margin:0 0 20px;">
-      将清除本机全部训练记录、招式库与视频，且不可恢复，确定要清空吗？
+      将清除本机全部训练记录、招式库与视频，以及自定义的教练、场地和训练招式预设（含内置默认项），且不可恢复，确定要清空吗？
     </p>
     <div class="clear-confirm-actions">
       <button type="button" id="clearCancelBtn" class="btn btn-ghost">取消</button>
@@ -443,6 +443,7 @@ const CUSTOM_VENUES_KEY = 'skate_custom_venues_v1';
 const CUSTOM_CONTENT_KEY = 'skate_custom_content_v1';
 const STORAGE_KEY = 'skate_training_records_v1';
 const TRICK_LIB_KEY = 'skate_trick_library_v1';
+const DEFAULTS_CLEARED_KEY = 'skate_defaults_cleared_v1'; // 清空历史数据后置位，防止内置默认项复活
 const VENUE_COLORS = {
   'ban滑板场': '#ff5a3c',
   'uride六里桥': '#00e0ff',
@@ -644,6 +645,13 @@ function clearAllData() {
   } catch (e) { console.warn('clearAllData 清除持久化介质失败:', e); }
   // 同步清空招式库
   try { localStorage.removeItem(TRICK_LIB_KEY); } catch (e) { console.warn('clearAllData 清除招式库失败:', e); }
+  // 同步清空自定义教练/场地/招式，并置位"内置默认已清空"标志，防止刷新后内置默认项复活
+  try {
+    localStorage.removeItem(CUSTOM_COACHES_KEY);
+    localStorage.removeItem(CUSTOM_VENUES_KEY);
+    localStorage.removeItem(CUSTOM_CONTENT_KEY);
+    localStorage.setItem(DEFAULTS_CLEARED_KEY, '1');
+  } catch (e) { console.warn('clearAllData 清除自定义项失败:', e); }
   // 同步清空本地视频库
   idbClearVideos();
 }
@@ -928,7 +936,7 @@ function renderDetail() {
 
   empty.style.display = 'none';
   form.style.display = '';
-  populateCoachSelect(rec ? rec.coach : '自己练习');
+  populateCoachSelect(rec ? rec.coach : (getAllCoaches().includes('自己练习') ? '自己练习' : ''));
   populateVenueSelect(rec ? rec.venue : '');
   // 兼容旧数据：content 可能是字符串、字符串数组，或新格式对象数组
   if (rec && rec.content) {
@@ -943,22 +951,33 @@ function renderDetail() {
 }
 
 /* ===== 教练/场地下拉填充 ===== */
+/* 是否已执行过"清空历史数据"：置位后内置默认项不再参与合并，避免刷新后复活 */
+function areDefaultsCleared() {
+  try { return localStorage.getItem(DEFAULTS_CLEARED_KEY) === '1'; } catch (e) { return false; }
+}
+function baseCoaches() { return areDefaultsCleared() ? [] : COACHES; }
+function baseVenues() { return areDefaultsCleared() ? [] : VENUES; }
+function baseContentPresets() { return areDefaultsCleared() ? [] : CONTENT_PRESETS; }
+
 function getAllCoaches() {
-  return COACHES.concat(loadCustomCoaches());
+  return baseCoaches().concat(loadCustomCoaches());
 }
 function getAllVenues() {
-  return VENUES.concat(loadCustomVenues());
+  return baseVenues().concat(loadCustomVenues());
 }
 function isCustomCoach(name) {
-  return !COACHES.includes(name) && loadCustomCoaches().includes(name);
+  return !baseCoaches().includes(name) && loadCustomCoaches().includes(name);
 }
 function isCustomVenue(name) {
-  return !VENUES.includes(name) && loadCustomVenues().includes(name);
+  return !baseVenues().includes(name) && loadCustomVenues().includes(name);
 }
 
 function populateCoachSelect(selected) {
   const sel = document.getElementById('fCoach');
   sel.innerHTML = '';
+  const blank = document.createElement('option');
+  blank.value = ''; blank.textContent = '请选择教练';
+  sel.appendChild(blank);
   getAllCoaches().forEach(c => {
     const o = document.createElement('option');
     o.value = c; o.textContent = c;
@@ -1020,7 +1039,7 @@ function bindCustomItems() {
   document.getElementById('confirmAddCoach').addEventListener('click', () => {
     const name = document.getElementById('newCoachInput').value.trim();
     if (!name) { flashToast('⚠️ 请输入教练名称'); return; }
-    if (COACHES.includes(name) || loadCustomCoaches().includes(name)) {
+    if (getAllCoaches().includes(name)) {
       flashToast('⚠️ 该教练已存在'); return;
     }
     const list = loadCustomCoaches();
@@ -1036,7 +1055,7 @@ function bindCustomItems() {
     if (!isCustomCoach(v)) return;
     const list = loadCustomCoaches().filter(c => c !== v);
     saveCustomCoaches(list);
-    populateCoachSelect('自己练习');
+    populateCoachSelect('');
     flashToast('🗑️ 已删除教练');
   });
   document.getElementById('fCoach').addEventListener('change', updateDelCoachBtn);
@@ -1053,7 +1072,7 @@ function bindCustomItems() {
   document.getElementById('confirmAddVenue').addEventListener('click', () => {
     const name = document.getElementById('newVenueInput').value.trim();
     if (!name) { flashToast('⚠️ 请输入场地名称'); return; }
-    if (VENUES.includes(name) || loadCustomVenues().includes(name)) {
+    if (getAllVenues().includes(name)) {
       flashToast('⚠️ 该场地已存在'); return;
     }
     const list = loadCustomVenues();
@@ -1077,10 +1096,10 @@ function bindCustomItems() {
 
 /* ===== 训练招式（多项标签） ===== */
 function getAllContentPresets() {
-  return CONTENT_PRESETS.concat(loadCustomContent());
+  return baseContentPresets().concat(loadCustomContent());
 }
 function isCustomContent(name) {
-  return !CONTENT_PRESETS.includes(name) && loadCustomContent().includes(name);
+  return !baseContentPresets().includes(name) && loadCustomContent().includes(name);
 }
 
 function renderContentRows() {
