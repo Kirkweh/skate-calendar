@@ -286,6 +286,33 @@
     padding: 10px 20px; border-radius: 999px; font-size: 14px; font-weight: 600;
     z-index: 50; transition: opacity 0.5s; opacity: 0; pointer-events: none;
   }
+
+  /* ===== 移动端日历格特写放大 ===== */
+  #dayZoomOverlay {
+    position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(3px);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+    opacity: 0; visibility: hidden; pointer-events: none;
+    transition: opacity 0.22s ease, visibility 0.22s;
+  }
+  #dayZoomOverlay.open { opacity: 1; visibility: visible; pointer-events: auto; }
+  #dayZoomCard {
+    width: 100%; max-width: 360px; box-sizing: border-box;
+    padding: 16px; border-radius: 16px;
+    background: linear-gradient(135deg, rgba(255,90,60,0.22), rgba(168,85,247,0.18)), linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 1px solid rgba(255,90,60,0.45);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.5);
+    transform-origin: center center;
+  }
+  .zoom-head { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+  .zoom-tags { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+  /* 特写里的标签放开截断，完整换行显示 */
+  .zoom-tags .tag {
+    font-size: 13px; padding: 6px 10px; border-radius: 10px; margin-bottom: 0;
+    white-space: normal; word-break: break-word; line-height: 1.45; max-width: 100%;
+  }
+  .zoom-empty { font-size: 12px; color: rgba(255,255,255,0.5); }
+  body.zoom-lock { overflow: hidden; }
 </style>
 </head>
 <body>
@@ -435,6 +462,9 @@
     </div>
   </div>
 </div>
+
+<!-- 移动端日历格特写放大层（内容在点击日历格后动态生成；需位于脚本之前以便绑定事件） -->
+<div id="dayZoomOverlay"><div id="dayZoomCard"></div></div>
 
 <script>
 /* 全局错误捕获，便于在运行时诊断问题 */
@@ -912,6 +942,24 @@ function renderCalendar() {
   }
 }
 
+/* 把一条记录拆成日历格／特写共用的三行文本：
+   1) 场地（含时长，如「五棵松 1.5h」）2) 教练 3)「📹N + 招式名」
+   任一行为空则返回空串，由调用方决定是否渲染该行 */
+function dayLinesOf(rec) {
+  const dur = (rec.duration === undefined || rec.duration === null || String(rec.duration).trim() === '')
+    ? '' : String(rec.duration).trim() + 'h';
+  const venue = [rec.venue, dur].filter(Boolean).join(' ').trim();
+  const coach = (rec.coach || '').trim();
+  const vCount = collectVideoIds(rec.content).length;
+  const trickNames = (!rec.content ? [] : (Array.isArray(rec.content) ? rec.content : [rec.content]))
+    .map(normalizeContentItem)
+    .map(x => (x.name || '').trim())
+    .filter(Boolean)
+    .join('、');
+  const trick = [vCount > 0 ? '📹' + vCount : '', trickNames].filter(Boolean).join(' ').trim();
+  return { venue, coach, trick };
+}
+
 function buildCell(day, monthOffset, isOther) {
   const cell = document.createElement('div');
   let y = currentYear, m = monthOffset;
@@ -943,38 +991,175 @@ function buildCell(day, monthOffset, isOther) {
 
   if (rec) {
     cell.classList.add('has-plan');
-    const coachTag = document.createElement('div');
-    coachTag.className = 'tag';
-    coachTag.style.background = coachColor(rec.coach);
-    coachTag.style.color = '#000';
-    coachTag.textContent = rec.coach;
-    cell.appendChild(coachTag);
+    // 日历格三行固定顺序：第 1 行场地（含时长）、第 2 行教练、第 3 行「视频标记 + 招式」
+    // 任一行内容为空则不渲染该行，避免出现空白胶囊
+    const lines = dayLinesOf(rec);
 
-    const venueTag = document.createElement('div');
-    venueTag.className = 'tag';
-    venueTag.style.background = 'rgba(255,255,255,0.15)';
-    venueTag.textContent = rec.venue + ' ' + rec.duration + 'h';
-    cell.appendChild(venueTag);
+    // 第 1 行：场地 + 时长（如「五棵松 1.5h」）
+    if (lines.venue) {
+      const venueTag = document.createElement('div');
+      venueTag.className = 'tag';
+      venueTag.style.background = 'rgba(255,255,255,0.15)';
+      venueTag.textContent = lines.venue;
+      cell.appendChild(venueTag);
+    }
 
-    // 有视频的日子加个标记
-    const vCount = collectVideoIds(rec.content).length;
-    if (vCount > 0) {
-      const vTag = document.createElement('div');
-      vTag.className = 'tag';
-      vTag.style.background = 'rgba(0,224,255,0.2)';
-      vTag.textContent = '📹 ' + vCount;
-      cell.appendChild(vTag);
+    // 第 2 行：教练
+    if (lines.coach) {
+      const coachTag = document.createElement('div');
+      coachTag.className = 'tag';
+      coachTag.style.background = coachColor(lines.coach);
+      coachTag.style.color = '#000';
+      coachTag.textContent = lines.coach;
+      cell.appendChild(coachTag);
+    }
+
+    // 第 3 行：视频标记 + 招式名（如「📹2 kickflip、ollie」），无视频时不显示标记
+    if (lines.trick) {
+      const trickTag = document.createElement('div');
+      trickTag.className = 'tag';
+      trickTag.style.background = 'rgba(0,224,255,0.2)';
+      trickTag.textContent = lines.trick;
+      cell.appendChild(trickTag);
     }
   }
 
   if (selectedDate === key) cell.classList.add('selected');
 
   cell.addEventListener('click', () => {
+    // 窄屏 + 当日有记录 + 非其他月份：渲染后弹出特写放大（坐标须在 renderAll 之前取）
+    const zoomFrom = (!isOther && rec && isNarrowScreen()) ? cell.getBoundingClientRect() : null;
     if (isOther) { currentYear = y; currentMonth = m; syncSelectors(); }
     selectedDate = key;
     renderAll();
+    if (zoomFrom) openDayZoom(key, zoomFrom);
   });
   return cell;
+}
+
+/* =========================
+   移动端：日历格特写放大
+   =========================
+   窄屏下点击有记录的日历格，卡片从原格位置放大到屏幕中央，
+   完整展示当日场地／教练／招式（不截断）；点击卡片外区域收回原格。 */
+const DAY_ZOOM_MEDIA = '(max-width: 768px)';
+let _dayZoomOpen = false;
+
+function isNarrowScreen() {
+  return window.matchMedia(DAY_ZOOM_MEDIA).matches;
+}
+
+/* 打开特写：fromRect 为点击前原格子的视口坐标，用作动画起点 */
+function openDayZoom(key, fromRect) {
+  const overlay = document.getElementById('dayZoomOverlay');
+  const card = document.getElementById('dayZoomCard');
+  const rec = loadRecords()[key];
+  if (!overlay || !card || !rec) return;
+
+  const [y, m, d] = key.split('-');
+  card.innerHTML = '';
+
+  const head = document.createElement('div');
+  head.className = 'zoom-head';
+  head.textContent = y + ' 年 ' + (+m) + ' 月 ' + (+d) + ' 日 训练';
+  if (_trickDateSet.has(key)) {
+    const star = document.createElement('span');
+    star.className = 'day-star';
+    star.textContent = '⭐';
+    head.appendChild(star);
+  }
+  card.appendChild(head);
+
+  // 三行完整内容（与日历格同序同色，仅去掉截断）
+  const lines = dayLinesOf(rec);
+  const tags = document.createElement('div');
+  tags.className = 'zoom-tags';
+  const pushTag = (text, bg, color) => {
+    const tag = document.createElement('div');
+    tag.className = 'tag';
+    tag.style.background = bg;
+    if (color) tag.style.color = color;
+    tag.textContent = text;
+    tags.appendChild(tag);
+  };
+  if (lines.venue) pushTag(lines.venue, 'rgba(255,255,255,0.15)');
+  if (lines.coach) pushTag(lines.coach, coachColor(lines.coach), '#000');
+  if (lines.trick) pushTag(lines.trick, 'rgba(0,224,255,0.2)');
+  if (!tags.childElementCount) {
+    const empty = document.createElement('div');
+    empty.className = 'zoom-empty';
+    empty.textContent = '当日无训练记录';
+    tags.appendChild(empty);
+  }
+  card.appendChild(tags);
+
+  overlay.classList.add('open');
+  document.body.classList.add('zoom-lock');
+  _dayZoomOpen = true;
+
+  // FLIP：先按最终布局渲染，再把卡片反推到原格位置，然后播放放大动画
+  if (fromRect && card.animate) {
+    const to = card.getBoundingClientRect();
+    const dx = (fromRect.left + fromRect.width / 2) - (to.left + to.width / 2);
+    const dy = (fromRect.top + fromRect.height / 2) - (to.top + to.height / 2);
+    const sx = fromRect.width / to.width;
+    const sy = fromRect.height / to.height;
+    card.animate(
+      [
+        { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.5 },
+        { transform: 'translate(0, 0) scale(1, 1)', opacity: 1 }
+      ],
+      { duration: 260, easing: 'cubic-bezier(0.22, 1, 0.36, 1)' }
+    );
+  }
+}
+
+/* 关闭特写：animate 为真时收回当前选中的日历格 */
+function closeDayZoom(animate) {
+  const overlay = document.getElementById('dayZoomOverlay');
+  const card = document.getElementById('dayZoomCard');
+  if (!overlay || !_dayZoomOpen) return;
+
+  overlay.classList.remove('open');
+  document.body.classList.remove('zoom-lock');
+  _dayZoomOpen = false;
+
+  const target = document.querySelector('#calendar .cal-cell.selected');
+  if (animate && target && card && card.animate) {
+    const to = card.getBoundingClientRect();
+    const r = target.getBoundingClientRect();
+    const dx = (r.left + r.width / 2) - (to.left + to.width / 2);
+    const dy = (r.top + r.height / 2) - (to.top + to.height / 2);
+    const sx = r.width / to.width;
+    const sy = r.height / to.height;
+    const anim = card.animate(
+      [
+        { transform: 'translate(0, 0) scale(1, 1)', opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) scale(${sx}, ${sy})`, opacity: 0.4 }
+      ],
+      { duration: 220, easing: 'cubic-bezier(0.4, 0, 1, 1)' }
+    );
+    anim.onfinish = () => { card.innerHTML = ''; };
+  } else if (card) {
+    card.innerHTML = '';
+  }
+}
+
+function bindDayZoom() {
+  const overlay = document.getElementById('dayZoomOverlay');
+  if (!overlay) return;
+  // 点击卡片以外的遮罩区域即关闭
+  overlay.addEventListener('click', (e) => {
+    if (e.target === overlay) closeDayZoom(true);
+  });
+  // Esc 关闭
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && _dayZoomOpen) closeDayZoom(true);
+  });
+  // 窗口放大到桌面宽度时收起浮层，避免遮挡
+  window.addEventListener('resize', () => {
+    if (_dayZoomOpen && !isNarrowScreen()) closeDayZoom(false);
+  });
 }
 
 /* =========================
@@ -1011,6 +1196,8 @@ function renderDetail() {
   renderContentRows();
   document.getElementById('fDuration').value = rec ? rec.duration : '';
   delBtn.style.display = rec ? '' : 'none';
+  // 表单显示后（此时才有真实布局）对齐三处「删除此自定义」
+  alignDeleteLinks();
 }
 
 /* ===== 教练/场地下拉填充 ===== */
@@ -1086,6 +1273,26 @@ function updateDelVenueBtn() {
   const v = document.getElementById('fVenue').value;
   const btn = document.getElementById('delVenueBtn');
   btn.style.display = isCustomVenue(v) ? '' : 'none';
+}
+
+/* 三处「删除此自定义」右对齐到各自下拉框的右边缘：
+   按钮从容器最右侧往左收，避开右侧的「+ / ×」，防止误点。
+   偏移量 = 该行（.select-row）右边缘 − 下拉框右边缘，即 + / × 占用的宽度。 */
+function alignDeleteLinks() {
+  const alignOne = (sel, delBtn) => {
+    if (!sel || !delBtn) return;
+    const row = sel.closest('.select-row');
+    if (!row) return;
+    const offset = Math.round(row.getBoundingClientRect().right - sel.getBoundingClientRect().right);
+    delBtn.style.marginRight = Math.max(0, offset) + 'px';
+  };
+  // 场地、教练：各一处
+  alignOne(document.getElementById('fVenue'), document.getElementById('delVenueBtn'));
+  alignOne(document.getElementById('fCoach'), document.getElementById('delCoachBtn'));
+  // 训练招式：每一行各一处（行数 >1 时右侧多一个「×」，偏移自动适配）
+  document.querySelectorAll('#contentRows .content-item').forEach((item) => {
+    alignOne(item.querySelector('.select-row .form-select'), item.querySelector('.video-line .btn-link'));
+  });
 }
 
 /* ===== 教练/场地增删事件 ===== */
@@ -1187,6 +1394,8 @@ function renderContentRows() {
   // 标题后显示当前条数：训练招式（N）
   const countEl = document.getElementById('contentCount');
   if (countEl) countEl.textContent = '（' + currentContentItems.length + '）';
+  // 重建后重新对齐每行的「删除此自定义」（行数变化会改变右侧按钮占用宽度）
+  alignDeleteLinks();
 }
 
 /* 构建单个"练习内容 + 视频"条目 */
@@ -2236,6 +2445,7 @@ function init() {
   bindCustomItems();
   bindSearchPanel();
   bindTrickLibrary();
+  bindDayZoom();
 
   document.getElementById('prevMonth').addEventListener('click', () => {
     currentMonth--; if (currentMonth < 0) { currentMonth = 11; currentYear--; }
@@ -2269,6 +2479,12 @@ function init() {
     renderAll();
     flashToast('🗑️ 所有训练记录已清空');
   });
+
+  // 窗口宽度变化时下拉框宽度随之变化，需要重新对齐「删除此自定义」
+  window.addEventListener('resize', alignDeleteLinks);
+  // 字体（含中文/符号）加载完成后宽度可能微变，再对齐一次
+  window.addEventListener('load', alignDeleteLinks);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignDeleteLinks);
 
   renderAll();
 }
