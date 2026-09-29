@@ -6,9 +6,9 @@
 <style>
   /* ===== 全站字号阶梯（桌面与手机完全一致，改字号只改这一处口径，不在各处零散写死）=====
        L1 区块标题    18px  700   日历「2026 年 9 月」、详情「…训练」、各面板标题
-       L2 小节标题    15px  700   场地 / 教练 / 训练招式 / 训练时长、招式库分组头
+       L2 小节标题    15px  700   场地 / 教练 / 训练内容 / 训练时长、招式库分组头
        L3 控件与正文  13px  400   下拉按钮与候选、输入框、列表正文（明细卡片、检索结果、统计小标题…）
-       L4 辅助次要    11px  400   （可自定义添加）、删除此自定义、日历格标签、统计标签
+       L4 辅助次要    11px  400   （可自定义添加）、「已成招 · 录入招式库」、日历格标签、统计标签
 
      未填写 / 未选择时文字统一为灰度 rgba(255,255,255,0.45)，选定后为白色 #fff。
      手机端不做任何字号上浮（详见样式表末尾说明）。 */
@@ -129,17 +129,59 @@
     -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
   }
   .form-label.hl .form-hint { -webkit-text-fill-color: rgba(255,255,255,0.4); color: rgba(255,255,255,0.4); }
-  /* 表单标题行：左侧标题 + 右侧「删除此自定义」按钮（仅选中自定义项时显示） */
-  .form-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  /* 表单标题行：左侧标题 + 右侧「＋ 场地」「＋ 教练」「＋ 招式」——全站唯一的加项入口。
+     主界面不再出现任何红字删除（旧版「删除此自定义」全部收进弹层） */
+  .form-label-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
   .form-label-row .form-label { margin-bottom: 0; }
-  .form-label-row .btn-link { margin-top: 0; padding: 0; }
-  /* 训练招式行首序号徽标 */
+  .btn-add { flex-shrink: 0; padding: 5px 12px; font-size: 12px; }
+
+  /* ===== 训练内容区块 ===== */
+  /* 行首徽标：招式 N（青色 = 正在练习中的招式；已成招入招式库才是金色 ★，两者刻意分开）。
+     宽度写死 54px：第二行的「上传视频 / 勾选框」靠 padding-left: 62px 与上面的下拉左对齐，
+     徽标一旦随字数变宽就会错位（54 = 内容区，含「招式 100」也放得下） */
   .row-index {
-    width: 22px; height: 22px; flex-shrink: 0; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 13px; font-weight: 700; color: #0f0f1a;
-    background: linear-gradient(135deg, #00ff87, #00d4ff);
+    flex-shrink: 0; width: 54px; height: 21px;
+    display: inline-flex; align-items: center; justify-content: center;
+    border-radius: 10px; white-space: nowrap;
+    font-size: 11px; font-weight: 700; color: #08201a;
+    background: #00D2BE;
   }
+  /* 「＋ 添加今日训练内容」：紧贴标题下方，一眼看到就能点；点了直接多一条，不弹层 */
+  .btn-add-content {
+    width: 100%; margin-bottom: 10px; padding: 9px 12px; border-radius: 9px;
+    background: rgba(0,224,255,0.10); border: 1px solid rgba(0,224,255,0.35);
+    color: #78DCF0; font-size: 13px; font-weight: 700; font-family: inherit; cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .btn-add-content:hover { background: rgba(0,224,255,0.18); border-color: rgba(0,224,255,0.6); }
+  /* 行尾删除：安静的灰色小叉。第一次点只进入确认态，再点一次才真删。
+     注意：它删的是「今天这一行训练内容」，不动招式库（成招记录 ★），也不动练习清单（下拉选项） */
+  .row-x {
+    flex-shrink: 0; width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 8px; cursor: pointer; line-height: 1; font-weight: 700; font-size: 15px;
+    background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.45); font-family: inherit;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+  .row-x:hover { background: rgba(255,61,61,0.15); border-color: rgba(255,61,61,0.3); color: #ff6b6b; }
+  .row-x.is-confirm {
+    width: auto; padding: 0 10px; font-size: 11px; font-weight: 600; white-space: nowrap;
+    background: rgba(255,61,61,0.15); border-color: rgba(255,61,61,0.3); color: #ff6b6b;
+  }
+
+  /* 录入招式库：常驻勾选框。旧版这个入口挂在「有视频」的分支里，没拍视频就没法入库，
+     这里改成和视频完全解耦——当天成招但没拍视频，照样能勾上收录。
+     青色勾选框 = 练习中的招式；勾上后文字转金色 + ★ = 已成招，进了招式库 */
+  .lib-check {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: rgba(255,255,255,0.45); cursor: pointer;
+    user-select: none; -webkit-user-select: none;
+  }
+  .lib-check input { width: 15px; height: 15px; margin: 0; accent-color: #00D2BE; cursor: pointer; flex-shrink: 0; }
+  .lib-check.is-on { color: #FFD166; font-weight: 600; }
+  .lib-star { color: #FFD166; opacity: 0.5; }
+  .lib-check.is-on .lib-star { opacity: 1; }
   /* 页面底部危险操作区 */
   .bottom-danger { display: flex; justify-content: center; margin: 24px 0 8px; }
   /* 清空确认弹层按钮 */
@@ -178,14 +220,8 @@
   /* min-width:0 解除 flex 子项「不得小于自身内容宽度」的限制——
      Safari 会按最宽选项计算 <select> 的最小宽度，不加这行会把右侧「+」「×」顶出屏幕 */
   .select-row .form-select { flex: 1; min-width: 0; }
-  .select-row > .btn, .select-row > .row-btn { flex-shrink: 0; }
-  .add-box { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
-  /* 同理：<input> 有默认宽度，不加 min-width:0 会把「添加」「取消」顶出去 */
-  .add-box .form-input { flex: 1; min-width: 0; }
-  .add-box > .btn { flex-shrink: 0; }
+  .select-row > .btn { flex-shrink: 0; }
   .form-hint { font-size: 11px; color: rgba(255,255,255,0.4); font-weight: normal; }
-  .btn-link { background: none; border: none; color: #ff6b6b; font-size: 11px; cursor: pointer; padding: 4px 0; margin-top: 4px; text-decoration: underline; }
-  .btn-link:hover { color: #ff8888; }
   .content-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; min-height: 28px; }
   .content-tag {
     display: inline-flex; align-items: center; gap: 4px;
@@ -284,16 +320,11 @@
   .search-date { font-weight: 700; }
   .search-meta { color: rgba(255,255,255,0.6); }
   .search-video-btns { display: flex; gap: 6px; flex-wrap: wrap; }
-  .row-btn {
-    width: 32px; height: 32px; display: flex; align-items: center; justify-content: center;
-    border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; border: none; flex-shrink: 0;
-  }
-  .row-del { background: rgba(255,61,61,0.15); color: #ff6b6b; }
-  .row-del:hover { background: rgba(255,61,61,0.3); }
 
   /* Content item + video */
   .content-item { margin-bottom: 8px; }
-  .video-line { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 0 0 4px 0; padding-left: 30px; }
+  /* 第二行与第一行的招式下拉左对齐：徽标宽 54px + .select-row 的 gap 8px = 62px */
+  .video-line { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 4px 0; padding-left: 62px; }
   .video-btn {
     display: inline-flex; align-items: center; gap: 4px;
     font-size: 11px; padding: 5px 10px; border-radius: 8px; cursor: pointer;
@@ -309,6 +340,59 @@
   .video-player { margin-top: 6px; }
   .content-video { width: 100%; border-radius: 8px; background: #000; display: block; }
   .video-btn.in-lib { color: #ffd60a; border-color: rgba(255,214,10,0.45); background: rgba(255,214,10,0.12); }
+
+  /* ===== 表单小弹层（＋ 场地 / ＋ 教练 / ＋ 招式 共用）=====
+     旧版是在下拉下方就地插一行输入框，容易误触、也把主界面撑乱；
+     改成独立弹层：主界面压暗不可点，新增与删除都在弹层里完成。 */
+  .modal-mask {
+    position: fixed; inset: 0; z-index: 110; background: rgba(0,0,0,0.62);
+    backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .modal {
+    width: 100%; max-width: 380px; max-height: 86vh; overflow-y: auto; box-sizing: border-box;
+    padding: 18px; border-radius: 14px;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 1px solid rgba(255,255,255,0.12);
+    box-shadow: 0 18px 48px rgba(0,0,0,0.5);
+  }
+  .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+  .modal-title { font-size: 15px; font-weight: 700; }
+  /* 副标题点明这一项到底加进哪个清单（练习清单 ≠ 招式库，两者最容易混） */
+  .modal-sub { font-size: 11px; color: #00D2BE; margin-top: 3px; }
+  .modal-close { background: none; border: none; color: rgba(255,255,255,0.45); font-size: 15px; cursor: pointer; padding: 0 2px; line-height: 1; }
+  .modal-close:hover { color: #fff; }
+  .modal-sep { height: 1px; background: rgba(255,255,255,0.12); margin: 12px 0; }
+  .modal-field { display: block; font-size: 11px; color: rgba(255,255,255,0.45); margin-bottom: 5px; }
+  .modal-hint { font-size: 11px; line-height: 1.5; margin-top: 6px; min-height: 16px; }
+  .modal-hint.is-warn { color: #FFB020; }
+  .modal-actions { display: flex; align-items: center; gap: 8px; }
+  .modal-actions .spacer { flex: 1; }
+  /* 弹层左下角的删除：删的是「这个自定义项本身」（场地/教练列表里的那一条） */
+  .modal-del {
+    background: none; border: none; font-family: inherit; cursor: pointer;
+    color: #ff6b6b; font-size: 11px; padding: 4px 0; text-decoration: underline;
+  }
+  .modal-del:hover { color: #ff8888; }
+  /* 与行尾灰叉同一套二次确认：第一次点只进入确认态，再点一次才真删 */
+  .modal-del.is-confirm {
+    text-decoration: none; padding: 6px 10px; border-radius: 7px; font-weight: 600;
+    background: rgba(255,61,61,0.15); border: 1px solid rgba(255,61,61,0.3);
+  }
+  /* 弹层里的清单（练习清单）：每项右侧一个小灰叉，同样二次确认 */
+  .modal-list { display: flex; flex-direction: column; }
+  .modal-list-item {
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    padding: 6px 0; font-size: 13px; border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .modal-list-item:last-child { border-bottom: none; }
+  .modal-list-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modal-list-empty { font-size: 11px; color: rgba(255,255,255,0.4); padding: 4px 0; }
+  .modal-list .row-x { width: 24px; height: 24px; font-size: 13px; }
+  .modal-list .row-x.is-confirm { width: auto; padding: 0 8px; font-size: 11px; }
+  /* 重名：输入框描边转橙，与橙色提示配套 */
+  .form-input.is-warn { border-color: #FFB020; }
+  .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .btn:disabled:hover { transform: none; opacity: 0.45; }
 
   /* 招式库弹层 */
   .overlay {
@@ -539,36 +623,28 @@
           <div class="form-group">
             <div class="form-label-row">
               <label class="form-label hl">场地 <span class="form-hint">（可自定义添加）</span></label>
-              <button type="button" id="delVenueBtn" class="btn-link" style="display:none;">删除此自定义</button>
+              <button type="button" id="addVenueBtn" class="btn btn-ghost btn-add">＋ 场地</button>
             </div>
             <div class="select-row">
               <select id="fVenue" class="form-select"><option value="">请选择场地</option></select>
-              <button type="button" id="addVenueBtn" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;">+</button>
-            </div>
-            <div id="venueAddBox" class="add-box" style="display:none;">
-              <input id="newVenueInput" class="form-input" type="text" placeholder="输入场地名称">
-              <button type="button" id="confirmAddVenue" class="btn btn-primary" style="padding:8px 12px;">添加</button>
-              <button type="button" id="cancelAddVenue" class="btn btn-ghost" style="padding:8px 12px;">取消</button>
             </div>
           </div>
           <div class="form-group">
             <div class="form-label-row">
               <label class="form-label hl">教练 <span class="form-hint">（可自定义添加）</span></label>
-              <button type="button" id="delCoachBtn" class="btn-link" style="display: none;">删除此自定义</button>
+              <button type="button" id="addCoachBtn" class="btn btn-ghost btn-add">＋ 教练</button>
             </div>
             <div class="select-row">
               <select id="fCoach" class="form-select"><option value="自己练习">自己练习</option></select>
-              <button type="button" id="addCoachBtn" class="btn btn-ghost" style="padding:8px 12px;font-size:13px;">+</button>
-            </div>
-            <div id="coachAddBox" class="add-box" style="display: none;">
-              <input id="newCoachInput" class="form-input" type="text" placeholder="输入教练名称">
-              <button type="button" id="confirmAddCoach" class="btn btn-primary" style="padding:8px 12px;">添加</button>
-              <button type="button" id="cancelAddCoach" class="btn btn-ghost" style="padding:8px 12px;">取消</button>
             </div>
           </div>
           <div class="form-group">
-            <label class="form-label hl">训练招式<span id="contentCount">（3）</span> <span class="form-hint">（可自定义添加）</span></label>
-            <div id="contentRows"><div class="content-item"><div class="select-row"><span class="row-index">1</span><select class="form-select"><option value="">请选择训练招式</option><option value="kickflip">kickflip</option><option value="ollie">ollie</option><option value="heelflip">heelflip</option><option value="123">123</option><option value="233">233</option><option value="抛台360">抛台360</option></select><button type="button" class="btn btn-ghost" title="新增自定义招式" style="padding: 8px 12px; font-size: 13px;">+</button><button type="button" class="row-btn row-del" title="删除此项">×</button></div><div class="add-box" style="display: none;"><input class="form-input" type="text" placeholder="输入训练招式名称"><button type="button" class="btn btn-primary" style="padding: 8px 12px;">添加</button><button type="button" class="btn btn-ghost" style="padding: 8px 12px;">取消</button></div><div class="video-line"><label class="video-btn upload">📹 从相册选择视频<input type="file" accept="video/*" class="video-file-input"></label><button type="button" class="btn-link" style="margin-top: 0px; display: none;">删除此自定义招式</button><div class="video-diag" id="diag-0"></div></div></div><div class="content-item"><div class="select-row"><span class="row-index">2</span><select class="form-select"><option value="">请选择训练招式</option><option value="kickflip">kickflip</option><option value="ollie">ollie</option><option value="heelflip">heelflip</option><option value="123">123</option><option value="233">233</option><option value="抛台360">抛台360</option></select><button type="button" class="btn btn-ghost" title="新增自定义招式" style="padding: 8px 12px; font-size: 13px;">+</button><button type="button" class="row-btn row-del" title="删除此项">×</button></div><div class="add-box" style="display: none;"><input class="form-input" type="text" placeholder="输入训练招式名称"><button type="button" class="btn btn-primary" style="padding: 8px 12px;">添加</button><button type="button" class="btn btn-ghost" style="padding: 8px 12px;">取消</button></div><div class="video-line"><label class="video-btn upload">📹 从相册选择视频<input type="file" accept="video/*" class="video-file-input"></label><button type="button" class="btn-link" style="margin-top: 0px; display: none;">删除此自定义招式</button><div class="video-diag" id="diag-1"></div></div></div><div class="content-item"><div class="select-row"><span class="row-index">3</span><select class="form-select"><option value="">请选择训练招式</option><option value="kickflip">kickflip</option><option value="ollie">ollie</option><option value="heelflip">heelflip</option><option value="123">123</option><option value="233">233</option><option value="抛台360">抛台360</option></select><button type="button" class="btn btn-ghost" title="新增自定义招式" style="padding: 8px 12px; font-size: 13px;">+</button><button type="button" class="row-btn row-del" title="删除此项">×</button></div><div class="add-box" style="display: none;"><input class="form-input" type="text" placeholder="输入训练招式名称"><button type="button" class="btn btn-primary" style="padding: 8px 12px;">添加</button><button type="button" class="btn btn-ghost" style="padding: 8px 12px;">取消</button></div><div class="video-line"><label class="video-btn upload">📹 从相册选择视频<input type="file" accept="video/*" class="video-file-input"></label><button type="button" class="btn-link" style="margin-top: 0px; display: none;">删除此自定义招式</button><div class="video-diag" id="diag-2"></div></div></div><button type="button" class="btn btn-ghost" style="width: 100%; font-size: 13px;">＋ 添加一条训练内容</button></div>
+            <div class="form-label-row">
+              <label class="form-label hl">训练内容<span id="contentCount">（1）</span></label>
+              <button type="button" id="addTrickBtn" class="btn btn-ghost btn-add">＋ 招式</button>
+            </div>
+            <button type="button" id="addTodayBtn" class="btn-add-content">＋ 添加今日训练内容</button>
+            <div id="contentRows"></div>
           </div>
           <div class="form-group">
             <label class="form-label hl">刷课</label>
@@ -604,7 +680,7 @@
     </section>
   </div>
 
-  <footer class="footer">数据与视频均保存在本地浏览器 · 不会上传到服务器 · <span id="storageStatus">本地存储（刷新不丢失） · 已存 2 天</span> · <span id="appVersion">v5.31</span></footer>
+  <footer class="footer">数据与视频均保存在本地浏览器 · 不会上传到服务器 · <span id="storageStatus">本地存储（刷新不丢失） · 已存 2 天</span> · <span id="appVersion">v5.32</span></footer>
 
   <!-- 危险操作：置于页面最下方，避免误触 -->
   <div class="bottom-danger">
@@ -650,7 +726,7 @@
     <div id="trickBody" class="trick-body"></div>
 
     <!-- 常驻引导语：固定放在面板最下方（列表之后），库空或不为空都显示，不会被列表挤掉 -->
-    <div class="trick-hint">在训练记录里给成功的视频点「⭐ 录入招式库」，<br>也可以点顶部「＋ 直接录入招式」把以前成的招补进来</div>
+    <div class="trick-hint">在训练记录里把做成的招式勾上「已成招 · 录入招式库 ★」就收进这里了（不需要视频），<br>也可以点顶部「＋ 直接录入招式」把以前成的招补进来</div>
   </div>
 </div>
 
@@ -791,10 +867,16 @@ function saveTrickLibrary(arr) {
 function makeTrickId() {
   return 'tk_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
 }
-/* 同一「日期 + 视频」在库中是否已存在（一个视频只对应一条招式） */
-function findTrickByVideo(date, videoId) {
-  if (!date || !videoId) return null;
-  return loadTrickLibrary().find(t => t.date === date && t.videoId === videoId) || null;
+/* 同一「日期 + 招式名」在库中是否已存在。
+   这是招式库的主键口径——它和日历星标、月总结「录入招式」、训练招式检索用的
+   buildTrickStarIndex() 完全一致。入库不再依赖视频，所以键取「日期 + 招式名」，
+   而不是「日期 + 视频」：当天成招但没拍视频，同样要能收录。 */
+function findTrickByName(date, name) {
+  const d = String(date || '').trim();
+  const n = String(name || '').trim().toLowerCase();
+  if (!d || !n) return null;
+  return loadTrickLibrary().find(t =>
+    (t.date || '').trim() === d && (t.name || '').trim().toLowerCase() === n) || null;
 }
 /* 该视频是否被招式库引用（用于删除保护） */
 function isVideoInLibrary(videoId) {
@@ -802,11 +884,12 @@ function isVideoInLibrary(videoId) {
   return loadTrickLibrary().some(t => t.videoId === videoId);
 }
 /* 录入一条招式。date / videoId 均可为空（手动补录老招式时可能两者都缺）。
-   带 videoId 时仍需保证「同一日期 + 同一视频」不重复录入 */
+   去重口径 = 「日期 + 招式名」：同一天同一个招式只留一条（与星标索引一致），
+   换名重勾不会因为「同一个视频」而被静默拒绝 */
 function addTrickEntry(name, date, videoId, source) {
   const nm = (name || '').trim();
   if (!nm) return false;
-  if (videoId && findTrickByVideo(date || '', videoId)) return false;
+  if (date && findTrickByName(date, nm)) return false;
   const list = loadTrickLibrary();
   list.push({
     id: makeTrickId(),
@@ -1485,8 +1568,6 @@ function renderDetail() {
   // 刷课：按归一化后的类型回填（'' 否 / 'lesson' 1课时 / 'camp' 训练营）
   setMakeupChoice(rec ? rec.makeup : '');
   delBtn.style.display = rec ? '' : 'none';
-  // 表单显示后（此时才有真实布局）对齐三处「删除此自定义」
-  alignDeleteLinks();
 }
 
 /* ===== 教练/场地下拉填充 ===== */
@@ -1530,7 +1611,6 @@ function populateCoachSelect(selected) {
     o.selected = true;
     sel.appendChild(o);
   }
-  updateDelCoachBtn();
   refreshSmallDropdowns(); // 选项已重建，同步自绘下拉按钮上的文字
 }
 function populateVenueSelect(selected) {
@@ -1551,39 +1631,7 @@ function populateVenueSelect(selected) {
     o.selected = true;
     sel.appendChild(o);
   }
-  updateDelVenueBtn();
   refreshSmallDropdowns(); // 选项已重建，同步自绘下拉按钮上的文字
-}
-
-function updateDelCoachBtn() {
-  const v = document.getElementById('fCoach').value;
-  const btn = document.getElementById('delCoachBtn');
-  btn.style.display = isCustomCoach(v) ? '' : 'none';
-}
-function updateDelVenueBtn() {
-  const v = document.getElementById('fVenue').value;
-  const btn = document.getElementById('delVenueBtn');
-  btn.style.display = isCustomVenue(v) ? '' : 'none';
-}
-
-/* 三处「删除此自定义」右对齐到各自下拉框的右边缘：
-   按钮从容器最右侧往左收，避开右侧的「+ / ×」，防止误点。
-   偏移量 = 该行（.select-row）右边缘 − 下拉框右边缘，即 + / × 占用的宽度。 */
-function alignDeleteLinks() {
-  const alignOne = (sel, delBtn) => {
-    if (!sel || !delBtn) return;
-    const row = sel.closest('.select-row');
-    if (!row) return;
-    const offset = Math.round(row.getBoundingClientRect().right - sel.getBoundingClientRect().right);
-    delBtn.style.marginRight = Math.max(0, offset) + 'px';
-  };
-  // 场地、教练：各一处
-  alignOne(document.getElementById('fVenue'), document.getElementById('delVenueBtn'));
-  alignOne(document.getElementById('fCoach'), document.getElementById('delCoachBtn'));
-  // 训练招式：每一行各一处（行数 >1 时右侧多一个「×」，偏移自动适配）
-  document.querySelectorAll('#contentRows .content-item').forEach((item) => {
-    alignOne(item.querySelector('.select-row .form-select'), item.querySelector('.video-line .btn-link'));
-  });
 }
 
 /* ===== 自绘小号下拉 =====
@@ -1742,73 +1790,329 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && _openSdList) { closeSmallDropdown(); e.stopPropagation(); }
 }, true);
 
-/* ===== 教练/场地增删事件 ===== */
-function bindCustomItems() {
-  // 教练
-  document.getElementById('addCoachBtn').addEventListener('click', () => {
-    document.getElementById('coachAddBox').style.display = 'flex';
-    document.getElementById('newCoachInput').focus();
-  });
-  document.getElementById('cancelAddCoach').addEventListener('click', () => {
-    document.getElementById('coachAddBox').style.display = 'none';
-    document.getElementById('newCoachInput').value = '';
-  });
-  document.getElementById('confirmAddCoach').addEventListener('click', () => {
-    const name = document.getElementById('newCoachInput').value.trim();
-    if (!name) { flashToast('⚠️ 请输入教练名称'); return; }
-    if (getAllCoaches().includes(name)) {
-      flashToast('⚠️ 该教练已存在'); return;
+/* ===== 二次确认删除 =====
+   第一次点只进入「确认态」（按钮原地变红 + 换文案），再点一次才真删；
+   失焦（点别处）或 3 秒不动自动复原。
+   行尾灰叉（删今天这一行）、弹层左下角的删除（删自定义场地/教练）、
+   弹层清单里的小灰叉（删练习清单里的一条）共用这一套。 */
+function bindTwoStepDelete(btn, opts) {
+  const idleText = btn.textContent;
+  const confirmClass = opts.confirmClass || 'is-confirm';
+  let timer = null;
+  const reset = () => {
+    if (timer) { clearTimeout(timer); timer = null; }
+    btn.classList.remove(confirmClass);
+    btn.textContent = idleText;
+    btn.title = opts.idleTitle || '';
+  };
+  btn.addEventListener('click', () => {
+    if (!btn.classList.contains(confirmClass)) {
+      btn.classList.add(confirmClass);
+      btn.textContent = opts.confirmText;
+      btn.title = opts.confirmTitle || opts.confirmText;
+      timer = setTimeout(reset, 3000);
+      return;
     }
-    const list = loadCustomCoaches();
-    list.push(name);
-    saveCustomCoaches(list);
-    document.getElementById('newCoachInput').value = '';
-    document.getElementById('coachAddBox').style.display = 'none';
-    populateCoachSelect(name);
-    flashToast('✅ 教练已添加');
+    reset();
+    opts.onConfirm();
   });
-  document.getElementById('delCoachBtn').addEventListener('click', () => {
-    const v = document.getElementById('fCoach').value;
-    if (!isCustomCoach(v)) return;
-    const list = loadCustomCoaches().filter(c => c !== v);
-    saveCustomCoaches(list);
-    populateCoachSelect('');
-    flashToast('🗑️ 已删除教练');
-  });
-  document.getElementById('fCoach').addEventListener('change', updateDelCoachBtn);
+  // 点别处 → 按钮失焦 → 复原，避免一直停在确认态
+  btn.addEventListener('blur', reset);
+}
+function makeTwoStepDelete(className, idleText, opts) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = className;
+  btn.textContent = idleText;
+  if (opts.idleTitle) btn.title = opts.idleTitle;
+  bindTwoStepDelete(btn, opts);
+  return btn;
+}
 
-  // 场地
-  document.getElementById('addVenueBtn').addEventListener('click', () => {
-    document.getElementById('venueAddBox').style.display = 'flex';
-    document.getElementById('newVenueInput').focus();
-  });
-  document.getElementById('cancelAddVenue').addEventListener('click', () => {
-    document.getElementById('venueAddBox').style.display = 'none';
-    document.getElementById('newVenueInput').value = '';
-  });
-  document.getElementById('confirmAddVenue').addEventListener('click', () => {
-    const name = document.getElementById('newVenueInput').value.trim();
-    if (!name) { flashToast('⚠️ 请输入场地名称'); return; }
-    if (getAllVenues().includes(name)) {
-      flashToast('⚠️ 该场地已存在'); return;
+/* ===== 表单小弹层（＋ 场地 / ＋ 教练 / ＋ 招式 共用）=====
+   旧版是在下拉下方就地插一行输入框，主界面会被撑乱、也容易误点；
+   改成独立弹层：主界面压暗不可点，新增与删除都在弹层里完成。 */
+let _modalEl = null;
+let _modalKeyHandler = null;
+
+function closeFormModal() {
+  if (_modalEl) { _modalEl.remove(); _modalEl = null; }
+  if (_modalKeyHandler) {
+    document.removeEventListener('keydown', _modalKeyHandler, true);
+    _modalKeyHandler = null;
+  }
+}
+
+/* cfg: { title, sub?, fieldLabel, placeholder?, hint?, existing(), dupText(name), onAdd(name),
+          list?: { title, items(), emptyText, onDelete(name) },
+          del?: { text, confirmText, onDelete() } } */
+function openFormModal(cfg) {
+  closeFormModal();
+
+  const mask = document.createElement('div');
+  mask.className = 'modal-mask';
+  const panel = document.createElement('div');
+  panel.className = 'modal';
+
+  const head = document.createElement('div');
+  head.className = 'modal-head';
+  const headL = document.createElement('div');
+  const titleEl = document.createElement('div');
+  titleEl.className = 'modal-title';
+  titleEl.textContent = cfg.title;
+  headL.appendChild(titleEl);
+  if (cfg.sub) {
+    const subEl = document.createElement('div');
+    subEl.className = 'modal-sub';
+    subEl.textContent = cfg.sub;
+    headL.appendChild(subEl);
+  }
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'modal-close';
+  closeBtn.textContent = '×';
+  closeBtn.title = '关闭';
+  closeBtn.addEventListener('click', closeFormModal);
+  head.appendChild(headL);
+  head.appendChild(closeBtn);
+  panel.appendChild(head);
+
+  const sep = document.createElement('div');
+  sep.className = 'modal-sep';
+  panel.appendChild(sep);
+
+  const fieldLabel = document.createElement('label');
+  fieldLabel.className = 'modal-field';
+  fieldLabel.textContent = cfg.fieldLabel;
+  panel.appendChild(fieldLabel);
+
+  const input = document.createElement('input');
+  input.className = 'form-input';
+  input.type = 'text';
+  input.autocomplete = 'off';
+  input.placeholder = cfg.placeholder || '';
+  panel.appendChild(input);
+
+  const hint = document.createElement('div');
+  hint.className = 'modal-hint';
+  panel.appendChild(hint);
+
+  // 可选：清单（「＋ 招式」用它管理练习清单）
+  if (cfg.list) {
+    const listTitle = document.createElement('div');
+    listTitle.className = 'modal-field';
+    listTitle.style.marginTop = '14px';
+    listTitle.textContent = cfg.list.title;
+    panel.appendChild(listTitle);
+    const listBox = document.createElement('div');
+    listBox.className = 'modal-list';
+    panel.appendChild(listBox);
+    const renderList = () => {
+      listBox.innerHTML = '';
+      const items = cfg.list.items();
+      if (!items.length) {
+        const empty = document.createElement('div');
+        empty.className = 'modal-list-empty';
+        empty.textContent = cfg.list.emptyText || '清单还是空的';
+        listBox.appendChild(empty);
+        return;
+      }
+      items.forEach((it) => {
+        const rowEl = document.createElement('div');
+        rowEl.className = 'modal-list-item';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'modal-list-name';
+        nameEl.textContent = it.name;
+        rowEl.appendChild(nameEl);
+        // 内置项不在自定义清单里，删不掉，就不给按钮
+        if (!it.base) {
+          rowEl.appendChild(makeTwoStepDelete('row-x', '×', {
+            idleTitle: '从练习清单删除',
+            confirmText: '再次点击删除',
+            onConfirm: () => { cfg.list.onDelete(it.name); renderList(); }
+          }));
+        }
+        listBox.appendChild(rowEl);
+      });
+    };
+    renderList();
+  }
+
+  const sep2 = document.createElement('div');
+  sep2.className = 'modal-sep';
+  panel.appendChild(sep2);
+
+  const actions = document.createElement('div');
+  actions.className = 'modal-actions';
+
+  // 左下角删除：删的是「当前选中的这个自定义项本身」（场地/教练列表里的那一条）
+  if (cfg.del) {
+    const delBtn = document.createElement('button');
+    delBtn.type = 'button';
+    delBtn.className = 'modal-del';
+    delBtn.textContent = cfg.del.text;
+    bindTwoStepDelete(delBtn, {
+      confirmText: cfg.del.confirmText,
+      onConfirm: () => { cfg.del.onDelete(); closeFormModal(); }
+    });
+    actions.appendChild(delBtn);
+  }
+  const spacer = document.createElement('div');
+  spacer.className = 'spacer';
+  actions.appendChild(spacer);
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'btn btn-ghost';
+  cancelBtn.textContent = '取消';
+  cancelBtn.addEventListener('click', closeFormModal);
+  actions.appendChild(cancelBtn);
+
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'btn btn-primary';
+  addBtn.textContent = '添加';
+  actions.appendChild(addBtn);
+  panel.appendChild(actions);
+
+  // 重名即时校验：输入框转橙描边 + 橙提示 + 「添加」置灰
+  const refresh = () => {
+    const name = input.value.trim();
+    const dup = !!name && cfg.existing().includes(name);
+    input.classList.toggle('is-warn', dup);
+    addBtn.disabled = !name || dup;
+    if (dup) {
+      hint.textContent = cfg.dupText(name);
+      hint.classList.add('is-warn');
+    } else {
+      hint.textContent = cfg.hint || '';
+      hint.classList.remove('is-warn');
     }
-    const list = loadCustomVenues();
-    list.push(name);
-    saveCustomVenues(list);
-    document.getElementById('newVenueInput').value = '';
-    document.getElementById('venueAddBox').style.display = 'none';
-    populateVenueSelect(name);
-    flashToast('✅ 场地已添加');
+  };
+  const doAdd = () => {
+    const name = input.value.trim();
+    if (!name || cfg.existing().includes(name)) { refresh(); return; }
+    cfg.onAdd(name);
+    closeFormModal();
+  };
+  input.addEventListener('input', refresh);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !addBtn.disabled) { e.preventDefault(); doAdd(); }
   });
-  document.getElementById('delVenueBtn').addEventListener('click', () => {
-    const v = document.getElementById('fVenue').value;
-    if (!isCustomVenue(v)) return;
-    const list = loadCustomVenues().filter(c => c !== v);
-    saveCustomVenues(list);
-    populateVenueSelect('');
-    flashToast('🗑️ 已删除场地');
+  addBtn.addEventListener('click', doAdd);
+  refresh();
+
+  mask.addEventListener('click', (e) => { if (e.target === mask) closeFormModal(); });
+  _modalKeyHandler = (e) => {
+    if (e.key === 'Escape') { closeFormModal(); e.stopPropagation(); }
+  };
+  document.addEventListener('keydown', _modalKeyHandler, true);
+
+  mask.appendChild(panel);
+  document.body.appendChild(mask);
+  _modalEl = mask;
+  setTimeout(() => input.focus(), 0);
+}
+
+/* ===== 添加场地 / 教练 / 新招式：都走弹层 =====
+   主界面不再有任何删除按钮；「删除此场地 / 删除此教练」只在弹层左下出现，
+   且仅当上方下拉当前选中的确实是自定义项（内置项不给删）。 */
+function openVenueModal() {
+  const cur = document.getElementById('fVenue').value;
+  openFormModal({
+    title: '添加场地',
+    fieldLabel: '场地名称',
+    placeholder: '输入场地名称',
+    existing: getAllVenues,
+    dupText: (n) => '场地列表已存在「' + n + '」。',
+    hint: '加进场地列表后，上方下拉里就能选到它。',
+    onAdd: (name) => {
+      const list = loadCustomVenues();
+      list.push(name);
+      saveCustomVenues(list);
+      populateVenueSelect(name);
+      flashToast('✅ 场地已添加');
+    },
+    del: isCustomVenue(cur) ? {
+      text: '删除此场地',
+      confirmText: '再次点击删除此场地',
+      onDelete: () => {
+        saveCustomVenues(loadCustomVenues().filter(v => v !== cur));
+        populateVenueSelect('');
+        flashToast('🗑️ 已删除场地');
+      }
+    } : null
   });
-  document.getElementById('fVenue').addEventListener('change', updateDelVenueBtn);
+}
+
+function openCoachModal() {
+  const cur = document.getElementById('fCoach').value;
+  openFormModal({
+    title: '添加教练',
+    fieldLabel: '教练名称',
+    placeholder: '输入教练名称',
+    existing: getAllCoaches,
+    dupText: (n) => '教练列表已存在「' + n + '」。',
+    hint: '加进教练列表后，上方下拉里就能选到它。',
+    onAdd: (name) => {
+      const list = loadCustomCoaches();
+      list.push(name);
+      saveCustomCoaches(list);
+      populateCoachSelect(name);
+      flashToast('✅ 教练已添加');
+    },
+    del: isCustomCoach(cur) ? {
+      text: '删除此教练',
+      confirmText: '再次点击删除此教练',
+      onDelete: () => {
+        saveCustomCoaches(loadCustomCoaches().filter(c => c !== cur));
+        populateCoachSelect('');
+        flashToast('🗑️ 已删除教练');
+      }
+    } : null
+  });
+}
+
+/* 「＋ 招式」加的是「正在练习中的招式」（行内下拉的候选项），不是招式库（成招记录 ★）。
+   两者名字都带「招式」，最容易混，所以副标题与提示文案都点明口径。 */
+function openTrickModal() {
+  openFormModal({
+    title: '添加新招式',
+    sub: '正在练习中的招式',
+    fieldLabel: '招式名称',
+    placeholder: '输入招式名称',
+    existing: getAllContentPresets,
+    dupText: (n) => '练习清单里已有「' + n + '」。',
+    hint: '加进「练习中」清单后，行内下拉就能选到它；练成了再在那一行勾「已成招」收录进招式库。',
+    onAdd: (name) => {
+      const list = loadCustomContent();
+      list.push(name);
+      saveCustomContent(list);
+      renderContentRows();
+      flashToast('✅ 已加入练习清单：' + name);
+    },
+    list: {
+      title: '练习清单',
+      emptyText: '练习清单还是空的',
+      items: () => getAllContentPresets().map(n => ({ name: n, base: baseContentPresets().includes(n) })),
+      onDelete: (name) => {
+        saveCustomContent(loadCustomContent().filter(x => x !== name));
+        // 被删掉的招式若正被某一行选中，就把那一行清空，否则那一行只剩一个「(旧)」选项
+        currentContentItems.forEach(it => { if (it.name === name) it.name = ''; });
+        renderContentRows();
+        flashToast('🗑️ 已从练习清单删除：' + name);
+      }
+    }
+  });
+}
+
+/* ===== 教练/场地/招式按钮绑定 ===== */
+function bindCustomItems() {
+  document.getElementById('addVenueBtn').addEventListener('click', openVenueModal);
+  document.getElementById('addCoachBtn').addEventListener('click', openCoachModal);
+  document.getElementById('addTrickBtn').addEventListener('click', openTrickModal);
+  // 「＋ 添加今日训练内容」：直接多一条，不弹层（它只是给今天多加一行记录）
+  document.getElementById('addTodayBtn').addEventListener('click', () => addContentRow(currentContentItems.length));
 }
 
 /* ===== 训练招式（多项标签） ===== */
@@ -1829,155 +2133,118 @@ function renderContentRows() {
   currentContentItems.forEach((item, idx) => {
     box.appendChild(buildContentItem(item, idx));
   });
-  // 底部：添加一条训练内容
-  const addRowBtn = document.createElement('button');
-  addRowBtn.type = 'button';
-  addRowBtn.className = 'btn btn-ghost';
-  addRowBtn.style.width = '100%';
-  addRowBtn.style.fontSize = '13px';
-  addRowBtn.textContent = '＋ 添加今日训练内容';
-  addRowBtn.addEventListener('click', () => addContentRow(currentContentItems.length));
-  box.appendChild(addRowBtn);
-  // 标题后显示当前条数：训练招式（N）
+  // 标题后显示当前条数：训练内容（N）
   const countEl = document.getElementById('contentCount');
   if (countEl) countEl.textContent = '（' + currentContentItems.length + '）';
-  // 行是动态重建的，新的训练招式下拉要重新交给自绘下拉接管
+  // 行是动态重建的，新的练习招式下拉要重新交给自绘下拉接管
   refreshSmallDropdowns();
-  // 重建后重新对齐每行的「删除此自定义」（行数变化会改变右侧按钮占用宽度）
-  alignDeleteLinks();
 }
 
-/* 构建单个"练习内容 + 视频"条目 */
+/* 构建单个「今日训练内容」条目。
+   第一行：招式 N（徽标）+ 练习招式下拉 + 灰色小叉（二次确认后删掉这一行）
+   第二行：📹 上传视频（可选）｜ ☐ 已成招 · 录入招式库 ★（可选，与视频互不影响）
+   注意两件容易混的事：
+   - 行内下拉选的是「正在练习中的招式」（练习清单）
+   - 勾选框往「招式库」里写一条成招记录（日历星标 ★ 看的就是它） */
 function buildContentItem(item, idx) {
   item = normalizeContentItem(item);
   const wrap = document.createElement('div');
   wrap.className = 'content-item';
 
-  // 第一行：序号 + 内容下拉（原生 select，与场地一致） + 新增自定义内容(+) + 删行(×)
+  // ---- 第一行 ----
   const row = document.createElement('div');
   row.className = 'select-row';
 
   const idxBadge = document.createElement('span');
   idxBadge.className = 'row-index';
-  idxBadge.textContent = String(idx + 1);
+  idxBadge.textContent = '招式 ' + (idx + 1);
   row.appendChild(idxBadge);
 
   const sel = document.createElement('select');
   sel.className = 'form-select';
   const blank = document.createElement('option');
-  blank.value = ''; blank.textContent = '请选择训练招式';
+  blank.value = ''; blank.textContent = '选择练习招式';
   sel.appendChild(blank);
-  getAllContentPresets().forEach(v => {
+  const presets = getAllContentPresets();
+  presets.forEach(v => {
     const o = document.createElement('option');
     o.value = v; o.textContent = v;
     if (v === item.name) o.selected = true;
     sel.appendChild(o);
   });
-  // 兼容旧数据：名称不在列表中（如已删除的自定义内容），补一个选项
-  if (item.name && !getAllContentPresets().includes(item.name)) {
+  // 兼容旧数据：名称不在练习清单里（如已从清单删除），补一个选项把它显示出来
+  if (item.name && !presets.includes(item.name)) {
     const o = document.createElement('option');
     o.value = item.name; o.textContent = item.name + ' (旧)';
     o.selected = true;
     sel.appendChild(o);
   }
-
-  const addBtn = document.createElement('button');
-  addBtn.type = 'button';
-  addBtn.className = 'btn btn-ghost';
-  addBtn.style.padding = '8px 12px';
-  addBtn.style.fontSize = '13px';
-  addBtn.textContent = '+';
-  addBtn.title = '新增自定义招式';
-
   row.appendChild(sel);
-  row.appendChild(addBtn);
 
-  if (currentContentItems.length > 1) {
-    const delBtn = document.createElement('button');
-    delBtn.type = 'button';
-    delBtn.className = 'row-btn row-del';
-    delBtn.textContent = '×';
-    delBtn.title = '删除此项';
-    delBtn.addEventListener('click', () => removeContentRow(idx));
-    row.appendChild(delBtn);
-  }
+  // 行尾删除：灰色小叉，二次确认。删的只是「今天这一行」，
+  // 招式库（成招记录 ★）与练习清单（下拉选项）都不受影响
+  const xBtn = makeTwoStepDelete('row-x', '×', {
+    idleTitle: '删除此行',
+    confirmText: '再次点击删除此行',
+    confirmTitle: '再点一次即删掉这一行训练内容（招式库与练习清单不受影响）',
+    onConfirm: () => removeContentRow(idx)
+  });
+  row.appendChild(xBtn);
   wrap.appendChild(row);
 
-  // 新增自定义内容输入框（与场地一致）
-  const addBox = document.createElement('div');
-  addBox.className = 'add-box';
-  addBox.style.display = 'none';
-  const newInput = document.createElement('input');
-  newInput.className = 'form-input';
-  newInput.type = 'text';
-  newInput.placeholder = '输入训练招式名称';
-  const confirmBtn = document.createElement('button');
-  confirmBtn.type = 'button';
-  confirmBtn.className = 'btn btn-primary';
-  confirmBtn.style.padding = '8px 12px';
-  confirmBtn.textContent = '添加';
-  const cancelBtn = document.createElement('button');
-  cancelBtn.type = 'button';
-  cancelBtn.className = 'btn btn-ghost';
-  cancelBtn.style.padding = '8px 12px';
-  cancelBtn.textContent = '取消';
-  addBox.appendChild(newInput);
-  addBox.appendChild(confirmBtn);
-  addBox.appendChild(cancelBtn);
-  wrap.appendChild(addBox);
+  // ---- 第二行 ----
+  const vline = document.createElement('div');
+  vline.className = 'video-line';
 
-  addBtn.addEventListener('click', () => {
-    addBox.style.display = 'flex';
-    newInput.focus();
-  });
-  cancelBtn.addEventListener('click', () => {
-    addBox.style.display = 'none';
-    newInput.value = '';
-  });
-  confirmBtn.addEventListener('click', () => {
-    const name = newInput.value.trim();
-    if (!name) { flashToast('⚠️ 请输入训练招式名称'); return; }
-    if (getAllContentPresets().includes(name)) { flashToast('⚠️ 该训练招式已存在'); return; }
-    const list = loadCustomContent();
-    list.push(name);
-    saveCustomContent(list);
-    newInput.value = '';
-    addBox.style.display = 'none';
-    currentContentItems[idx].name = name; // 新增后自动选中
-    renderContentRows();
-    flashToast('✅ 训练招式已添加');
-  });
+  // 录入招式库：常驻勾选框。旧版这个入口挂在「有视频」的分支里，
+  // 没拍视频就根本没法入库；这里与视频彻底解耦——当天成招但没拍视频，照样能勾上收录
+  const libLabel = document.createElement('label');
+  libLabel.className = 'lib-check';
+  const libCb = document.createElement('input');
+  libCb.type = 'checkbox';
+  const libTxt = document.createElement('span');
+  libTxt.textContent = '已成招 · 录入招式库';
+  const libStar = document.createElement('span');
+  libStar.className = 'lib-star';
+  libStar.textContent = '★';
+  libLabel.appendChild(libCb);
+  libLabel.appendChild(libTxt);
+  libLabel.appendChild(libStar);
 
-  // 自定义内容时显示的删除链接（右对齐到与场地/教练的删除按钮同一竖线）
-  const delLink = document.createElement('button');
-  delLink.type = 'button';
-  delLink.className = 'btn-link';
-  delLink.style.marginTop = '0';
-  delLink.style.marginLeft = 'auto';
-  delLink.textContent = '删除此自定义';
-
-  const updateDelLink = () => {
-    delLink.style.display = isCustomContent(sel.value) ? '' : 'none';
+  const refreshLibCheck = () => {
+    const name = (sel.value || '').trim();
+    const on = !!(name && selectedDate && findTrickByName(selectedDate, name));
+    libCb.checked = on;
+    libCb.disabled = !name || !selectedDate;
+    libLabel.classList.toggle('is-on', on);
+    libLabel.title = !selectedDate
+      ? '请先选择日期'
+      : (!name
+        ? '先在左边选好招式，再勾这里把它收录进招式库'
+        : '勾上 = 这个招式今天做成了，收录进招式库（带 ★）。不需要视频，没拍视频也能勾。');
   };
-  updateDelLink();
 
-  delLink.addEventListener('click', () => {
-    const removing = sel.value;
-    if (!removing) return;
-    saveCustomContent(loadCustomContent().filter(x => x !== removing));
-    currentContentItems[idx].name = '';
-    renderContentRows();
-    flashToast('🗑️ 已删除自定义招式');
+  libCb.addEventListener('change', () => {
+    const name = (sel.value || '').trim();
+    if (!name) { libCb.checked = false; flashToast('⚠️ 请先选择招式'); return; }
+    if (!selectedDate) { libCb.checked = false; flashToast('⚠️ 请先选择日期'); return; }
+    if (libCb.checked) {
+      if (findTrickByName(selectedDate, name)) { refreshLibCheck(); return; }
+      addTrickEntry(name, selectedDate, (currentContentItems[idx] || {}).videoId || '', 'record');
+      flashToast('★ 已收录进招式库：' + name);
+    } else {
+      const entry = findTrickByName(selectedDate, name);
+      if (entry) removeTrickEntry(entry.id);
+      flashToast('已从招式库移除：' + name);
+    }
+    refreshLibCheck();
   });
 
   sel.addEventListener('change', () => {
     currentContentItems[idx].name = sel.value;
-    updateDelLink();
+    // 招式换了 → 勾选框要对齐到新招式的成招状态
+    refreshLibCheck();
   });
-
-  // 第二行：视频（「删除此自定义招式」与视频按钮并入同一行）
-  const vline = document.createElement('div');
-  vline.className = 'video-line';
 
   if (item.videoId) {
     const chip = document.createElement('span');
@@ -1998,46 +2265,11 @@ function buildContentItem(item, idx) {
     rmBtn.textContent = '✕ 移除';
     rmBtn.addEventListener('click', () => removeVideo(idx));
     vline.appendChild(rmBtn);
-
-    // 录入招式库：一支成功视频对应一条招式，再次点击即取消录入
-    const libBtn = document.createElement('button');
-    libBtn.type = 'button';
-    libBtn.className = 'video-btn';
-    const refreshLibBtn = () => {
-      const inLib = !!findTrickByVideo(selectedDate, item.videoId);
-      libBtn.classList.toggle('in-lib', inLib);
-      libBtn.textContent = inLib ? '✓ 已录入招式库' : '⭐ 录入招式库';
-      libBtn.title = inLib ? '点击可从招式库移除此条' : '把这个成功的视频录入招式库';
-    };
-    refreshLibBtn();
-    libBtn.addEventListener('click', () => {
-      const videoId = (currentContentItems[idx] || {}).videoId;
-      if (!videoId) { flashToast('⚠️ 请先上传视频'); return; }
-      if (!selectedDate) { flashToast('⚠️ 请先选择日期'); return; }
-      const exist = findTrickByVideo(selectedDate, videoId);
-      if (exist) {
-        removeTrickEntry(exist.id);
-        flashToast('已从招式库移除该条');
-      } else {
-        const name = ((currentContentItems[idx] || {}).name || '').trim();
-        if (!name) { flashToast('⚠️ 请先填写训练招式名称'); return; }
-        addTrickEntry(name, selectedDate, videoId);
-        flashToast('⭐ 已录入招式库：' + name);
-      }
-      refreshLibBtn();
-    });
-    vline.appendChild(libBtn);
-
-    // 诊断信息行：默认隐藏，仅在有报错时由 setDiag 显示
-    const diag = document.createElement('div');
-    diag.className = 'video-diag';
-    diag.id = 'diag-' + idx;
-    vline.appendChild(diag);
   } else {
     // label + 隐藏 file input：点击 label 直接唤起相册
     const upLabel = document.createElement('label');
     upLabel.className = 'video-btn upload';
-    upLabel.textContent = '📹 从相册选择视频';
+    upLabel.textContent = '📹 上传视频';
     if (!_videoSupported) {
       upLabel.className = 'video-btn upload disabled';
       upLabel.textContent = '📹 当前环境不支持本地视频';
@@ -2054,19 +2286,18 @@ function buildContentItem(item, idx) {
       upLabel.appendChild(fi);
     }
     vline.appendChild(upLabel);
-
-    // 诊断信息行：默认隐藏，仅在有报错时由 setDiag 显示
-    const diag = document.createElement('div');
-    diag.className = 'video-diag';
-    diag.id = 'diag-' + idx;
-    vline.appendChild(diag);
   }
-  // 删除此自定义招式：与视频按钮同排（插在整行诊断信息之前，避免被挤到下一行）
-  const diagEl = vline.querySelector('.video-diag');
-  if (diagEl) vline.insertBefore(delLink, diagEl);
-  else vline.appendChild(delLink);
-  wrap.appendChild(vline);
 
+  vline.appendChild(libLabel);
+
+  // 诊断信息行：默认隐藏，仅在有报错时由 setDiag 显示
+  const diag = document.createElement('div');
+  diag.className = 'video-diag';
+  diag.id = 'diag-' + idx;
+  vline.appendChild(diag);
+
+  wrap.appendChild(vline);
+  refreshLibCheck();
   return wrap;
 }
 
@@ -2321,11 +2552,10 @@ async function togglePlay(wrapEl, idx, btn) {
 function addContentRow(atIdx) {
   currentContentItems.splice(atIdx, 0, normalizeContentItem(null));
   renderContentRows();
-  // 聚焦到新行
-  setTimeout(() => {
-    const rows = document.querySelectorAll('#contentRows .content-item .select-row select');
-    if (rows[atIdx]) rows[atIdx].focus();
-  }, 0);
+  // 新行直接追加在末尾，滚到它附近，省得还要手动往下翻
+  const rows = document.querySelectorAll('#contentRows .content-item');
+  const last = rows[rows.length - 1];
+  if (last && last.scrollIntoView) last.scrollIntoView({ block: 'nearest' });
 }
 
 function removeContentRow(idx) {
@@ -3254,12 +3484,6 @@ function init() {
     renderAll();
     flashToast('🗑️ 所有训练记录已清空');
   });
-
-  // 窗口宽度变化时下拉框宽度随之变化，需要重新对齐「删除此自定义」
-  window.addEventListener('resize', alignDeleteLinks);
-  // 字体（含中文/符号）加载完成后宽度可能微变，再对齐一次
-  window.addEventListener('load', alignDeleteLinks);
-  if (document.fonts && document.fonts.ready) document.fonts.ready.then(alignDeleteLinks);
 
   renderAll();
 }
