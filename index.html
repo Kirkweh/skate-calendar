@@ -71,10 +71,6 @@
     transition: all 0.2s ease;
   }
   .cal-cell:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.25); }
-  .cal-cell.has-plan {
-    background: linear-gradient(135deg, rgba(255,90,60,0.18), rgba(168,85,247,0.15));
-    border-color: rgba(255,90,60,0.4);
-  }
   .cal-cell.selected { outline: 2px solid #00e0ff; outline-offset: -2px; }
   .cal-cell.other-month { opacity: 0.3; }
   .cal-cell.today .day-num { background: #ff5a3c; color: #fff; border-radius: 50%; }
@@ -83,17 +79,24 @@
   .day-head { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
   .day-head .day-num { margin-bottom: 0; }
   .day-star { font-size: 11px; line-height: 1; }
-  /* 刷课标记：不占用日期行，改为整格亮黄边框（覆盖「有记录」的橙色边框）。
+  /* 刷课标记：不占用日期行，改为整格柔青柠边框（覆盖「有记录」的橙色边框）。
+     「1课时」与「训练营」共用这一种边框，只表示「当天有刷课」，具体类型在当天特写卡片里写明。
      外光晕只是视觉加粗，不参与布局，因此日期与 ⭐ 的排布完全不受影响 */
   .cal-cell.has-makeup {
-    border-color: #ffd60a;
-    box-shadow: 0 0 0 1px rgba(255,214,10,0.45);
+    border-color: #A8E063;
+    box-shadow: 0 0 0 1px rgba(168,224,99,0.45);
   }
 
-  .tag {
-    display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 999px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; margin-bottom: 2px;
+  /* 日历格里的三行内容：纯文字（不再用彩色胶囊），只有教练名前带一个教练色小圆点。
+     场地白字 / 教练白字+色点 / 招式柔青字，把格子里的颜色数量压到最少 */
+  .cell-line {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 11px; line-height: 16px; margin-bottom: 2px;
+    color: rgba(255,255,255,0.9);
   }
+  .cell-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .cell-line-trick { color: #5AC8FA; }
+  .coach-dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
 
   /* Form */
   .form-group { margin-bottom: 12px; }
@@ -141,8 +144,8 @@
   .form-select option { background: #1a1a2e; color: #fff; }
   .form-textarea { resize: vertical; }
   .form-actions { display: flex; gap: 8px; padding-top: 4px; }
-  /* 刷课：否 / 是两个小按钮，选中的那个高亮 */
-  .makeup-toggle { display: flex; gap: 8px; }
+  /* 刷课：否 / 1课时 / 训练营 三个小按钮，单选，选中的那个高亮 */
+  .makeup-toggle { display: flex; flex-wrap: wrap; gap: 8px; }
   .makeup-btn {
     min-width: 64px; padding: 8px 16px; cursor: pointer;
     background: rgba(15,15,26,0.6); border: 1px solid rgba(255,255,255,0.12);
@@ -150,7 +153,7 @@
     font-size: 13px; font-family: inherit;
     transition: background 0.2s, border-color 0.2s, color 0.2s;
   }
-  .makeup-btn.is-on { background: rgba(198,255,0,0.16); border-color: #c6ff00; color: #c6ff00; font-weight: 700; }
+  .makeup-btn.is-on { background: rgba(168,224,99,0.16); border-color: #A8E063; color: #A8E063; font-weight: 700; }
   .select-row { display: flex; gap: 8px; align-items: center; }
   /* min-width:0 解除 flex 子项「不得小于自身内容宽度」的限制——
      Safari 会按最宽选项计算 <select> 的最小宽度，不加这行会把右侧「+」「×」顶出屏幕 */
@@ -343,28 +346,49 @@
   .empty-state { text-align: center; padding: 32px 0; color: rgba(255,255,255,0.4); font-size: 13px; line-height: 1.6; }
 
   /* Summary */
-  /* 四个卡片（总时长 / 训练次数 / 录入招式 / 刷课总时长）排成两行两列，窄屏也整齐 */
-  .summary-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 16px; }
+  /* 四个卡片（训练次数 / 总时长 / 录入招式 / 刷课总次数）：宽屏一行四列，
+     手机（≤768px）自动折成两行两列，避免每张被压得过窄 */
+  .summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 16px; }
+  @media (max-width: 768px) { .summary-grid { grid-template-columns: repeat(2, 1fr); } }
   .stat-card {
     background: linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01));
     border: 1px solid rgba(255,255,255,0.08);
-    border-radius: 12px; padding: 12px; text-align: center;
+    border-radius: 12px; padding: 12px 6px; text-align: center;
   }
-  .stat-value { font-size: 24px; font-weight: 900; }
+  .stat-value { font-size: 22px; font-weight: 900; }
   .stat-label { font-size: 11px; color: rgba(255,255,255,0.5); margin-top: 2px; }
-  .c-accent { color: #ff5a3c; }
-  .c-neon { color: #00e0ff; }
-  .c-yellow { color: #ffd60a; }
-  .c-lime { color: #c6ff00; }
+  /* 四张统计卡的数字配色：四个色相间隔拉够、饱和与亮度统一压到同一档，既不互相靠色也不刺眼
+     （原来的青 187° / 黄 50° / 亮绿 74° 彼此挤在一起，橙红 11° 又最跳） */
+  .c-neon { color: #5AC8FA; }   /* 训练次数 —— 柔青 */
+  .c-accent { color: #B08CFF; } /* 总时长(小时) —— 柔紫 */
+  .c-yellow { color: #FFB86B; } /* 录入招式 —— 柔橙 */
+  .c-lime { color: #A8E063; }   /* 刷课总次数 —— 柔青柠 */
 
-  .section-label { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 600; margin-bottom: 8px; margin-top: 16px; }
+  /* 区块标题统一白色，与下方灰色的柱状图内容形成层级 */
+  .section-label { font-size: 13px; color: #fff; font-weight: 600; margin-bottom: 8px; margin-top: 16px; }
   .section-label:first-of-type { margin-top: 0; }
 
+  /* 柱状图：每项两行——第 1 行「名称 + 次数」，第 2 行是条；文字统一灰色 */
   .bar-row { margin-bottom: 8px; }
-  .bar-row-head { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 4px; }
-  .bar-row-val { color: rgba(255,255,255,0.7); }
+  .bar-row-head { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; margin-bottom: 4px; color: rgba(255,255,255,0.55); }
+  .bar-row-val { color: rgba(255,255,255,0.55); }
   .bar { height: 8px; border-radius: 4px; background: rgba(255,255,255,0.1); overflow: hidden; }
   .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
+
+  /* 按教练统计刷课：小表格——行=教练，列=1课时 / 训练营 / 合计。
+     字号全部 13px，层级靠颜色区分：表头最淡 < 数据灰（与柱状图文字同色）< 合计亮绿 */
+  .makeup-table { font-size: 13px; }
+  .makeup-tr {
+    display: grid; grid-template-columns: 1.6fr 0.9fr 0.9fr 0.9fr;
+    gap: 8px; padding: 6px 0; color: rgba(255,255,255,0.55);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .makeup-tr:last-child { border-bottom: none; }
+  .makeup-tr > span:not(:first-child) { text-align: right; }
+  /* 表头与数据同字号，但更淡；下方一条稍明显的线把表头和数据切开 */
+  .makeup-th { color: rgba(255,255,255,0.4); border-bottom-color: rgba(255,255,255,0.14); }
+  /* 合计列：整张表唯一的强调色，便于一眼找到刷得最多的教练 */
+  .makeup-total { color: #A8E063; font-weight: 700; }
 
   .detail-list { max-height: 240px; overflow-y: auto; padding-right: 4px; }
   .detail-item {
@@ -376,9 +400,14 @@
   .detail-day { font-weight: 700; }
   .detail-meta { color: rgba(255,255,255,0.6); }
   .detail-content { color: rgba(255,255,255,0.8); margin-bottom: 4px; }
-  .detail-duration { color: #ff5a3c; font-weight: 700; }
+  .detail-duration { color: rgba(255,255,255,0.55); }
+  /* 刷课标注单独用柔青柠：与日历上的刷课边框、刷课统计同一色，一眼区分「多久」与「刷没刷课」 */
+  .detail-makeup { color: #A8E063; font-weight: 700; }
 
   .footer { text-align: center; color: rgba(255,255,255,0.3); font-size: 11px; margin-top: 24px; padding-bottom: 16px; }
+  /* 版本号：比底部灰字略亮一点，便于一眼确认手机上跑的是哪一版。
+     改动应用后需同步更新此处的版本号与使用指导书的版本号 */
+  #appVersion { color: rgba(255,255,255,0.5); }
 
   /* Scrollbar */
   ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -403,7 +432,7 @@
   }
   #dayZoomOverlay.open { opacity: 1; visibility: visible; pointer-events: auto; }
   /* 刷课的日子：特写卡片边框与日历格保持一致 */
-  #dayZoomCard.makeup { border-color: #ffd60a; }
+  #dayZoomCard.makeup { border-color: #A8E063; }
   #dayZoomCard {
     width: 100%; max-width: 360px; box-sizing: border-box;
     padding: 16px; border-radius: 16px;
@@ -413,13 +442,12 @@
     transform-origin: center center;
   }
   .zoom-head { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; margin-bottom: 12px; }
-  .zoom-tags { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
-  /* 特写里的标签放开截断，完整换行显示 */
-  .zoom-tags .tag {
-    font-size: 13px; padding: 6px 10px; border-radius: 10px; margin-bottom: 0;
-    white-space: normal; word-break: break-word; line-height: 1.45; max-width: 100%;
-  }
-  .zoom-empty { font-size: 13px; color: rgba(255,255,255,0.5); }
+  /* 特写卡片与「训练招式明细」同构：四行纯文字（日期行 → 教练·场地 → 招式 → 时长·刷课），不用彩色胶囊 */
+  .zoom-body { display: flex; flex-direction: column; gap: 4px; }
+  .zoom-line { font-size: 13px; line-height: 1.5; word-break: break-word; }
+  .zoom-meta { color: rgba(255,255,255,0.6); }
+  .zoom-trick { color: rgba(255,255,255,0.8); }
+  .zoom-dur { color: rgba(255,255,255,0.55); }
   body.zoom-lock { overflow: hidden; }
 
   /* ===== 手机端（≤768px）字号：与桌面完全一致，故不再设置任何媒体查询 =====
@@ -471,7 +499,7 @@
         <div class="cal-weekday">五</div>
         <div class="cal-weekday">六</div>
       </div>
-      <div id="calendar" class="cal-grid"><div class="cal-cell other-month"><div class="day-num">30</div></div><div class="cal-cell other-month"><div class="day-num">31</div></div><div class="cal-cell"><div class="day-num">1</div></div><div class="cal-cell"><div class="day-num">2</div></div><div class="cal-cell"><div class="day-num">3</div></div><div class="cal-cell"><div class="day-num">4</div></div><div class="cal-cell"><div class="day-num">5</div></div><div class="cal-cell"><div class="day-num">6</div></div><div class="cal-cell"><div class="day-num">7</div></div><div class="cal-cell"><div class="day-num">8</div></div><div class="cal-cell"><div class="day-num">9</div></div><div class="cal-cell"><div class="day-num">10</div></div><div class="cal-cell"><div class="day-num">11</div></div><div class="cal-cell"><div class="day-num">12</div></div><div class="cal-cell"><div class="day-num">13</div></div><div class="cal-cell"><div class="day-num">14</div></div><div class="cal-cell"><div class="day-num">15</div></div><div class="cal-cell"><div class="day-num">16</div></div><div class="cal-cell"><div class="day-num">17</div></div><div class="cal-cell"><div class="day-num">18</div></div><div class="cal-cell"><div class="day-num">19</div></div><div class="cal-cell"><div class="day-num">20</div></div><div class="cal-cell has-plan"><div class="day-num">21</div><div class="tag" style="background: rgb(198, 255, 0); color: rgb(0, 0, 0);">楼下</div><div class="tag" style="background: rgba(255, 255, 255, 0.15);">box 2h</div></div><div class="cal-cell has-plan"><div class="day-num">22</div><div class="tag" style="background: rgb(198, 255, 0); color: rgb(0, 0, 0);">楼下</div><div class="tag" style="background: rgba(255, 255, 255, 0.15);">box 3h</div></div><div class="cal-cell"><div class="day-num">23</div></div><div class="cal-cell"><div class="day-num">24</div></div><div class="cal-cell"><div class="day-num">25</div></div><div class="cal-cell"><div class="day-num">26</div></div><div class="cal-cell"><div class="day-num">27</div></div><div class="cal-cell today selected"><div class="day-num">28</div></div><div class="cal-cell"><div class="day-num">29</div></div><div class="cal-cell"><div class="day-num">30</div></div><div class="cal-cell other-month"><div class="day-num">1</div></div><div class="cal-cell other-month"><div class="day-num">2</div></div><div class="cal-cell other-month"><div class="day-num">3</div></div></div>
+      <div id="calendar" class="cal-grid"><div class="cal-cell other-month"><div class="day-num">30</div></div><div class="cal-cell other-month"><div class="day-num">31</div></div><div class="cal-cell"><div class="day-num">1</div></div><div class="cal-cell"><div class="day-num">2</div></div><div class="cal-cell"><div class="day-num">3</div></div><div class="cal-cell"><div class="day-num">4</div></div><div class="cal-cell"><div class="day-num">5</div></div><div class="cal-cell"><div class="day-num">6</div></div><div class="cal-cell"><div class="day-num">7</div></div><div class="cal-cell"><div class="day-num">8</div></div><div class="cal-cell"><div class="day-num">9</div></div><div class="cal-cell"><div class="day-num">10</div></div><div class="cal-cell"><div class="day-num">11</div></div><div class="cal-cell"><div class="day-num">12</div></div><div class="cal-cell"><div class="day-num">13</div></div><div class="cal-cell"><div class="day-num">14</div></div><div class="cal-cell"><div class="day-num">15</div></div><div class="cal-cell"><div class="day-num">16</div></div><div class="cal-cell"><div class="day-num">17</div></div><div class="cal-cell"><div class="day-num">18</div></div><div class="cal-cell"><div class="day-num">19</div></div><div class="cal-cell"><div class="day-num">20</div></div><div class="cal-cell"><div class="day-num">21</div></div><div class="cal-cell"><div class="day-num">22</div></div><div class="cal-cell"><div class="day-num">23</div></div><div class="cal-cell"><div class="day-num">24</div></div><div class="cal-cell"><div class="day-num">25</div></div><div class="cal-cell"><div class="day-num">26</div></div><div class="cal-cell"><div class="day-num">27</div></div><div class="cal-cell today selected"><div class="day-num">28</div></div><div class="cal-cell"><div class="day-num">29</div></div><div class="cal-cell"><div class="day-num">30</div></div><div class="cal-cell other-month"><div class="day-num">1</div></div><div class="cal-cell other-month"><div class="day-num">2</div></div><div class="cal-cell other-month"><div class="day-num">3</div></div></div>
     </section>
 
     <!-- Right Panel -->
@@ -518,19 +546,16 @@
             <div id="contentRows"><div class="content-item"><div class="select-row"><span class="row-index">1</span><select class="form-select"><option value="">请选择训练招式</option><option value="kickflip">kickflip</option><option value="ollie">ollie</option><option value="heelflip">heelflip</option><option value="123">123</option><option value="233">233</option><option value="抛台360">抛台360</option></select><button type="button" class="btn btn-ghost" title="新增自定义招式" style="padding: 8px 12px; font-size: 13px;">+</button><button type="button" class="row-btn row-del" title="删除此项">×</button></div><div class="add-box" style="display: none;"><input class="form-input" type="text" placeholder="输入训练招式名称"><button type="button" class="btn btn-primary" style="padding: 8px 12px;">添加</button><button type="button" class="btn btn-ghost" style="padding: 8px 12px;">取消</button></div><div class="video-line"><label class="video-btn upload">📹 从相册选择视频<input type="file" accept="video/*" class="video-file-input"></label><button type="button" class="btn-link" style="margin-top: 0px; display: none;">删除此自定义招式</button><div class="video-diag" id="diag-0"></div></div></div><div class="content-item"><div class="select-row"><span class="row-index">2</span><select class="form-select"><option value="">请选择训练招式</option><option value="kickflip">kickflip</option><option value="ollie">ollie</option><option value="heelflip">heelflip</option><option value="123">123</option><option value="233">233</option><option value="抛台360">抛台360</option></select><button type="button" class="btn btn-ghost" title="新增自定义招式" style="padding: 8px 12px; font-size: 13px;">+</button><button type="button" class="row-btn row-del" title="删除此项">×</button></div><div class="add-box" style="display: none;"><input class="form-input" type="text" placeholder="输入训练招式名称"><button type="button" class="btn btn-primary" style="padding: 8px 12px;">添加</button><button type="button" class="btn btn-ghost" style="padding: 8px 12px;">取消</button></div><div class="video-line"><label class="video-btn upload">📹 从相册选择视频<input type="file" accept="video/*" class="video-file-input"></label><button type="button" class="btn-link" style="margin-top: 0px; display: none;">删除此自定义招式</button><div class="video-diag" id="diag-1"></div></div></div><div class="content-item"><div class="select-row"><span class="row-index">3</span><select class="form-select"><option value="">请选择训练招式</option><option value="kickflip">kickflip</option><option value="ollie">ollie</option><option value="heelflip">heelflip</option><option value="123">123</option><option value="233">233</option><option value="抛台360">抛台360</option></select><button type="button" class="btn btn-ghost" title="新增自定义招式" style="padding: 8px 12px; font-size: 13px;">+</button><button type="button" class="row-btn row-del" title="删除此项">×</button></div><div class="add-box" style="display: none;"><input class="form-input" type="text" placeholder="输入训练招式名称"><button type="button" class="btn btn-primary" style="padding: 8px 12px;">添加</button><button type="button" class="btn btn-ghost" style="padding: 8px 12px;">取消</button></div><div class="video-line"><label class="video-btn upload">📹 从相册选择视频<input type="file" accept="video/*" class="video-file-input"></label><button type="button" class="btn-link" style="margin-top: 0px; display: none;">删除此自定义招式</button><div class="video-diag" id="diag-2"></div></div></div><button type="button" class="btn btn-ghost" style="width: 100%; font-size: 13px;">＋ 添加一条训练内容</button></div>
           </div>
           <div class="form-group">
-            <label class="form-label hl">训练时长（小时）</label>
-            <input id="fDuration" class="form-input" type="number" step="0.5" min="0" placeholder="例如 1.5">
-          </div>
-          <div class="form-group">
             <label class="form-label hl">刷课</label>
             <div class="makeup-toggle" id="makeupToggle">
-              <button type="button" class="makeup-btn is-on" data-makeup="0">否</button>
-              <button type="button" class="makeup-btn" data-makeup="1">是</button>
+              <button type="button" class="makeup-btn is-on" data-makeup="">否</button>
+              <button type="button" class="makeup-btn" data-makeup="lesson">1课时</button>
+              <button type="button" class="makeup-btn" data-makeup="camp">训练营</button>
             </div>
           </div>
-          <div class="form-group" id="makeupHoursGroup" style="display:none;">
-            <label class="form-label hl">刷课时长（小时）</label>
-            <input id="fMakeupHours" class="form-input" type="number" step="0.5" min="0" placeholder="例如 1.5">
+          <div class="form-group">
+            <label class="form-label hl">训练时长（小时）</label>
+            <input id="fDuration" class="form-input" type="number" step="0.5" min="0" placeholder="例如 1.5">
           </div>
           <div class="form-actions">
             <button type="button" id="saveBtn" class="btn btn-primary" style="flex:1;">💾 保存</button>
@@ -549,12 +574,12 @@
       <!-- Monthly Summary -->
       <div class="glass">
         <h3 class="panel-title">📊 <span id="summaryTitle">2026年9月 训练总结</span></h3>
-        <div id="summaryBody"><div class="summary-grid"><div class="stat-card"><div class="stat-value c-accent">5.0</div><div class="stat-label">总时长(小时)</div></div><div class="stat-card"><div class="stat-value c-neon">2</div><div class="stat-label">训练次数</div></div><div class="stat-card"><div class="stat-value c-yellow">0.0</div><div class="stat-label">自己练习(h)</div></div></div><div class="section-label">按场地统计</div><div class="bar-row"><div class="bar-row-head"><span>box</span><span class="bar-row-val">5.0 h</span></div><div class="bar"><div class="bar-fill" style="width:100%;background:#22d3ee"></div></div></div><div class="section-label">按教练统计</div><div class="bar-row"><div class="bar-row-head"><span>楼下</span><span class="bar-row-val">5.0 h</span></div><div class="bar"><div class="bar-fill" style="width:100%;background:#c6ff00"></div></div></div><div class="section-label">训练招式明细</div><div class="detail-list"><div class="detail-item"><div class="detail-head"><span class="detail-day">21日</span><span class="detail-meta">楼下 · box</span></div><div class="detail-content">抛台360、kickflip、ollie</div><div class="detail-duration">2 小时</div></div><div class="detail-item"><div class="detail-head"><span class="detail-day">22日</span><span class="detail-meta">楼下 · box</span></div><div class="detail-content">抛台360、233、ollie</div><div class="detail-duration">3 小时</div></div></div></div>
+        <div id="summaryBody"><div class="summary-grid"><div class="stat-card"><div class="stat-value c-neon">0</div><div class="stat-label">训练次数</div></div><div class="stat-card"><div class="stat-value c-accent">0.0</div><div class="stat-label">总时长(小时)</div></div><div class="stat-card"><div class="stat-value c-yellow">0</div><div class="stat-label">录入招式</div></div><div class="stat-card"><div class="stat-value c-lime">0</div><div class="stat-label">刷课总次数</div></div></div><div class="section-label">按场地统计(次)</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">暂无记录</div><div class="section-label">按教练统计刷课(次)</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">本月没有刷课记录</div><div class="section-label">训练招式明细</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">本月还没有训练记录，去日历里添加吧！</div></div>
       </div>
     </section>
   </div>
 
-  <footer class="footer">数据与视频均保存在本地浏览器 · 不会上传到服务器 · <span id="storageStatus">本地存储（刷新不丢失） · 已存 2 天</span></footer>
+  <footer class="footer">数据与视频均保存在本地浏览器 · 不会上传到服务器 · <span id="storageStatus">本地存储（刷新不丢失） · 已存 2 天</span> · <span id="appVersion">v5.24</span></footer>
 
   <!-- 危险操作：置于页面最下方，避免误触 -->
   <div class="bottom-danger">
@@ -637,22 +662,14 @@ const CUSTOM_CONTENT_KEY = 'skate_custom_content_v1';
 const STORAGE_KEY = 'skate_training_records_v1';
 const TRICK_LIB_KEY = 'skate_trick_library_v1';
 const DEFAULTS_CLEARED_KEY = 'skate_defaults_cleared_v1'; // 清空历史数据后置位，防止内置默认项复活
-const VENUE_COLORS = {
-  'ban滑板场': '#ff5a3c',
-  'uride六里桥': '#00e0ff',
-  '首钢极限公园': '#a855f7',
-  '大兴woodward': '#c6ff00',
-  '楼下': '#ffd60a'
-};
 const COACH_COLORS = {
   '自己练习': '#ffd60a'
 };
 // 为自定义教练/场地生成颜色
 let _customColorIdx = 0;
 const CUSTOM_COLOR_PALETTE = ['#ff5a3c','#00e0ff','#a855f7','#c6ff00','#ff3db2','#ffd60a','#4ade80','#f97316','#ec4899','#22d3ee'];
-// 月度总结横向柱状图配色：按场地、按教练各用一套色系，组内按顺序取色互不重复
+// 月度总结「按场地统计」横向柱状图配色：组内按顺序取色，互不重复
 const VENUE_BAR_PALETTE = ['#22d3ee', '#38bdf8', '#2dd4bf', '#0ea5e9', '#14b8a6', '#60a5fa'];
-const COACH_BAR_PALETTE = ['#ff5a3c', '#ff3db2', '#f97316', '#ec4899', '#a855f7', '#fb7185'];
 function getColorFor(name, baseMap) {
   if (baseMap[name]) return baseMap[name];
   // 用名称哈希选色
@@ -660,7 +677,6 @@ function getColorFor(name, baseMap) {
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
   return CUSTOM_COLOR_PALETTE[Math.abs(hash) % CUSTOM_COLOR_PALETTE.length];
 }
-function venueColor(v) { return getColorFor(v, VENUE_COLORS); }
 function coachColor(c) { return getColorFor(c, COACH_COLORS); }
 
 /* ===== 自定义教练/场地存储 ===== */
@@ -747,7 +763,7 @@ function deleteVideoIfUnused(id) {
 
 let currentYear, currentMonth, selectedDate = null;
 let currentContentItems = []; // 当前编辑中的训练招式列表
-let _makeupChoice = false;    // 表单「刷课」的当前选择（false = 否，默认不刷课）
+let _makeupChoice = '';       // 表单「刷课」的当前选择：'' 否 / 'lesson' 1课时 / 'camp' 训练营
 
 /* ===== 存储层：内存为源、localStorage 为备 =====
    设计原则：
@@ -790,10 +806,32 @@ function bootstrapMemoryStore() {
   } catch (e) { console.warn('bootstrapMemoryStore 加载失败，使用空数据:', e); }
 }
 
+/* 刷课类型归一化：'' 否 / 'lesson' 1课时 / 'camp' 训练营。
+   旧数据里 makeup 是布尔值（true = 刷课），无法分辨类型，一律折算成 'lesson'（1课时）；
+   旧的按小时口径字段 makeupHours 随之作废并删除，避免与新口径混淆 */
+function normalizeMakeup(rec) {
+  if (!rec || typeof rec !== 'object') return rec;
+  if (rec.makeup !== 'lesson' && rec.makeup !== 'camp') {
+    rec.makeup = rec.makeup === true ? 'lesson' : '';
+  }
+  if ('makeupHours' in rec) delete rec.makeupHours;
+  return rec;
+}
+
+/* 刷课类型对应的中文名；「否」返回空串（调用方据此决定不显示） */
+function makeupLabel(m) {
+  if (m === 'lesson') return '1课时';
+  if (m === 'camp') return '训练营';
+  return '';
+}
+
 /* 始终从内存深拷贝读取，杜绝引用共享与陈旧数据 */
 function loadRecords() {
   try {
-    return JSON.parse(JSON.stringify(_memoryStore));
+    const out = JSON.parse(JSON.stringify(_memoryStore));
+    // 读出口处统一归一化刷课字段：调用方（详情回填、日历、统计）都只需处理新口径
+    for (const k in out) normalizeMakeup(out[k]);
+    return out;
   } catch (e) { console.warn('loadRecords 深拷贝失败:', e); return {}; }
 }
 
@@ -1155,40 +1193,30 @@ function buildCell(day, monthOffset, isOther) {
   cell.appendChild(head);
 
   if (rec) {
-    cell.classList.add('has-plan');
-    // 刷课的日子整格换成亮黄边框：不占日期行，⭐ 的位置与「没刷课」的日子完全一致
+    // 刷课的日子整格换成柔青柠边框（1课时与训练营共用）：不占日期行，⭐ 的位置不受影响
     if (rec.makeup) cell.classList.add('has-makeup');
     // 日历格三行固定顺序：第 1 行场地（含时长）、第 2 行教练、第 3 行「视频标记 + 招式」
-    // 任一行内容为空则不渲染该行，避免出现空白胶囊
+    // 三行一律纯文字，只有教练名前带一个教练色小圆点——不再每行一个色块，格子里的颜色数量最少
     const lines = dayLinesOf(rec);
-
-    // 第 1 行：场地 + 时长（如「五棵松 1.5h」）
-    if (lines.venue) {
-      const venueTag = document.createElement('div');
-      venueTag.className = 'tag';
-      venueTag.style.background = 'rgba(255,255,255,0.15)';
-      venueTag.textContent = lines.venue;
-      cell.appendChild(venueTag);
-    }
-
-    // 第 2 行：教练
-    if (lines.coach) {
-      const coachTag = document.createElement('div');
-      coachTag.className = 'tag';
-      coachTag.style.background = coachColor(lines.coach);
-      coachTag.style.color = '#000';
-      coachTag.textContent = lines.coach;
-      cell.appendChild(coachTag);
-    }
-
-    // 第 3 行：视频标记 + 招式名（如「📹2 kickflip、ollie」），无视频时不显示标记
-    if (lines.trick) {
-      const trickTag = document.createElement('div');
-      trickTag.className = 'tag';
-      trickTag.style.background = 'rgba(0,224,255,0.2)';
-      trickTag.textContent = lines.trick;
-      cell.appendChild(trickTag);
-    }
+    const addLine = (cls, text, dotColor) => {
+      if (!text) return;
+      const line = document.createElement('div');
+      line.className = 'cell-line' + (cls ? ' ' + cls : '');
+      if (dotColor) {
+        const dot = document.createElement('span');
+        dot.className = 'coach-dot';
+        dot.style.background = dotColor;
+        line.appendChild(dot);
+      }
+      const txt = document.createElement('span');
+      txt.className = 'cell-text';
+      txt.textContent = text;
+      line.appendChild(txt);
+      cell.appendChild(line);
+    };
+    addLine('', lines.venue);                                            // 第 1 行：场地 + 时长
+    addLine('', lines.coach, lines.coach ? coachColor(lines.coach) : null); // 第 2 行：教练色点 + 教练名
+    addLine('cell-line-trick', lines.trick);                             // 第 3 行：视频标记 + 招式名
   }
 
   if (selectedDate === key) cell.classList.add('selected');
@@ -1239,31 +1267,32 @@ function openDayZoom(key, fromRect) {
   }
   card.appendChild(head);
 
-  // 三行完整内容（与日历格同序同色，仅去掉截断）
-  // 成招的招式名后跟 ⭐，口径与「训练招式明细」一致
+  // 与「训练招式明细」完全同构：日期行 → 教练·场地 → 招式 → 时长·刷课，全部纯文字、不用彩色胶囊
+  // 成招的招式名后跟 ⭐，口径与明细一致
   const lines = dayLinesOf(rec, key, buildTrickStarIndex());
-  const tags = document.createElement('div');
-  tags.className = 'zoom-tags';
-  const pushTag = (text, bg, color) => {
-    const tag = document.createElement('div');
-    tag.className = 'tag';
-    tag.style.background = bg;
-    if (color) tag.style.color = color;
-    tag.textContent = text;
-    tags.appendChild(tag);
+  const body = document.createElement('div');
+  body.className = 'zoom-body';
+  const addLine = (cls, text) => {
+    if (!text) return;
+    const line = document.createElement('div');
+    line.className = 'zoom-line ' + cls;
+    line.textContent = text;
+    body.appendChild(line);
   };
-  if (lines.venue) pushTag(lines.venue, 'rgba(255,255,255,0.15)');
-  if (lines.coach) pushTag(lines.coach, coachColor(lines.coach), '#000');
-  if (lines.trick) pushTag(lines.trick, 'rgba(0,224,255,0.2)');
-  // 刷课行：与记录里的刷课时长一致，未刷课时不显示
-  if (rec.makeup && rec.makeupHours > 0) pushTag('刷课 ' + rec.makeupHours + ' 小时', 'rgba(255,214,10,0.18)', '#ffd60a');
-  if (!tags.childElementCount) {
-    const empty = document.createElement('div');
-    empty.className = 'zoom-empty';
-    empty.textContent = '当日无训练记录';
-    tags.appendChild(empty);
+  addLine('zoom-meta', [lines.coach, rec.venue].filter(Boolean).join(' · '));
+  addLine('zoom-trick', lines.trick);
+  // 末行：时长 + 刷课；刷课复用明细的 .detail-makeup，保证两处颜色、字重完全一致
+  const durLine = document.createElement('div');
+  durLine.className = 'zoom-line zoom-dur';
+  durLine.textContent = rec.duration + ' 小时';
+  if (rec.makeup) {
+    const mk = document.createElement('span');
+    mk.className = 'detail-makeup';
+    mk.textContent = ' · 刷课 ' + makeupLabel(rec.makeup);
+    durLine.appendChild(mk);
   }
-  card.appendChild(tags);
+  body.appendChild(durLine);
+  card.appendChild(body);
 
   overlay.classList.add('open');
   document.body.classList.add('zoom-lock');
@@ -1337,15 +1366,13 @@ function bindDayZoom() {
 /* =========================
    详情面板
    ========================= */
-/* 「刷课」：否 / 是两个按钮的状态与「刷课时长」输入框的显隐。
-   只负责按钮状态与显隐，不碰输入框里的数值（切换日期时由 renderDetail 直接赋值） */
-function setMakeupChoice(on) {
-  _makeupChoice = !!on;
+/* 「刷课」：否 / 1课时 / 训练营 三个按钮的单选状态（'' / 'lesson' / 'camp'）。
+   只负责按钮高亮，不碰数据；切换日期时由 renderDetail 调用本函数回填 */
+function setMakeupChoice(m) {
+  _makeupChoice = (m === 'lesson' || m === 'camp') ? m : '';
   document.querySelectorAll('#makeupToggle .makeup-btn').forEach((b) => {
-    b.classList.toggle('is-on', (b.dataset.makeup === '1') === _makeupChoice);
+    b.classList.toggle('is-on', (b.dataset.makeup || '') === _makeupChoice);
   });
-  const grp = document.getElementById('makeupHoursGroup');
-  if (grp) grp.style.display = _makeupChoice ? '' : 'none';
 }
 
 function renderDetail() {
@@ -1378,10 +1405,8 @@ function renderDetail() {
   }
   renderContentRows();
   document.getElementById('fDuration').value = rec ? rec.duration : '';
-  // 刷课：旧记录没有 makeup 字段，一律按「否」处理；未刷课时清空刷课时长输入框
-  const hasMakeup = !!(rec && rec.makeup);
-  setMakeupChoice(hasMakeup);
-  document.getElementById('fMakeupHours').value = (hasMakeup && rec.makeupHours) ? rec.makeupHours : '';
+  // 刷课：按归一化后的类型回填（'' 否 / 'lesson' 1课时 / 'camp' 训练营）
+  setMakeupChoice(rec ? rec.makeup : '');
   delBtn.style.display = rec ? '' : 'none';
   // 表单显示后（此时才有真实布局）对齐三处「删除此自定义」
   alignDeleteLinks();
@@ -2233,9 +2258,9 @@ function removeContentRow(idx) {
 }
 
 function bindForm() {
-  // 「刷课」否 / 是：切换按钮高亮与「刷课时长」输入框的显隐
+  // 「刷课」否 / 1课时 / 训练营：单选，切到哪一个就高亮哪一个
   document.querySelectorAll('#makeupToggle .makeup-btn').forEach((btn) => {
-    btn.addEventListener('click', () => setMakeupChoice(btn.dataset.makeup === '1'));
+    btn.addEventListener('click', () => setMakeupChoice(btn.dataset.makeup || ''));
   });
   document.getElementById('saveBtn').addEventListener('click', () => {
     try {
@@ -2253,13 +2278,11 @@ function bindForm() {
         }))
         .filter(it => it.name.length > 0 || it.videoId);
       const duration = parseFloat(document.getElementById('fDuration').value);
-      // 刷课：选「是」时刷课时长必填且需大于 0（与训练时长同一套校验口径）
-      const makeup = _makeupChoice === true;
-      const makeupHours = parseFloat(document.getElementById('fMakeupHours').value);
+      // 刷课：'' 否 / 'lesson' 1课时 / 'camp' 训练营（单选，按次数统计，无需额外填写）
+      const makeup = _makeupChoice;
 
       if (!venue) { flashToast('⚠️ 请选择场地'); return; }
       if (!duration || duration <= 0) { flashToast('⚠️ 请填写有效的训练时长'); return; }
-      if (makeup && (!makeupHours || makeupHours <= 0)) { flashToast('⚠️ 请填写有效的刷课时长'); return; }
 
       const records = loadRecords();
       const prev = records[selectedDate];
@@ -2267,12 +2290,8 @@ function bindForm() {
       const newIds = new Set(content.map(it => it.videoId).filter(Boolean));
       collectVideoIds(prev && prev.content).forEach(id => { if (!newIds.has(id)) deleteVideoIfUnused(id); });
 
-      // makeupHours 只在刷课时有意义：未刷课一律存 0，避免污染统计口径
-      records[selectedDate] = {
-        coach, venue, content, duration,
-        makeup: makeup,
-        makeupHours: makeup ? makeupHours : 0
-      };
+      // makeup 直接存类型字符串（'' 表示未刷课），不再记录小时数
+      records[selectedDate] = { coach, venue, content, duration, makeup };
       const persisted = saveRecords(records);
 
       renderAll();
@@ -2338,66 +2357,62 @@ function renderSummary() {
   const totalHours = monthRecs.reduce((s, r) => s + (r.duration || 0), 0);
   const sessions = monthRecs.length;
 
+  // 按场地统计的口径是「训练次数」：每有一条记录，该场地记 1 次（不再按时长）
   const byVenue = {};
-  const byCoach = {};
   monthRecs.forEach(r => {
-    byVenue[r.venue] = (byVenue[r.venue] || 0) + (r.duration || 0);
-    byCoach[r.coach] = (byCoach[r.coach] || 0) + (r.duration || 0);
+    byVenue[r.venue] = (byVenue[r.venue] || 0) + 1;
   });
 
-  // 刷课：只统计「选了是」且时长大于 0 的记录，并按教练汇总（刷课跟着教练走）
-  const totalMakeup = monthRecs.reduce((s, r) => s + (r.makeup ? (r.makeupHours || 0) : 0), 0);
-  const byCoachMakeup = {};
+  // 刷课：按「次数」统计，1课时与训练营分别计数，并按教练汇总（刷课跟着教练走）
+  const totalMakeup = monthRecs.filter(r => r.makeup).length;
+  const byCoachMakeup = {}; // { 教练: { lesson: 次数, camp: 次数 } }
   monthRecs.forEach(r => {
     if (!r.makeup) return;
-    const h = r.makeupHours || 0;
-    if (h <= 0) return;
-    byCoachMakeup[r.coach] = (byCoachMakeup[r.coach] || 0) + h;
+    if (!byCoachMakeup[r.coach]) byCoachMakeup[r.coach] = { lesson: 0, camp: 0 };
+    byCoachMakeup[r.coach][r.makeup] += 1;
   });
 
   // 录入招式：招式库中「训练日期」落在当月的条目数（训练总结卡片展示）
   const monthTricks = loadTrickLibrary().filter(t => (t.date || '').startsWith(prefix)).length;
   const starIdx = buildTrickStarIndex(); // 成招索引：用于明细里给成招的招式名加星标
   const maxVenue = Math.max(1, ...Object.values(byVenue));
-  const maxCoach = Math.max(1, ...Object.values(byCoach));
-  const maxCoachMakeup = Math.max(1, ...Object.values(byCoachMakeup));
 
   let html = '';
   html += '<div class="summary-grid">';
-  html += '<div class="stat-card"><div class="stat-value c-accent">' + totalHours.toFixed(1) + '</div><div class="stat-label">总时长(小时)</div></div>';
   html += '<div class="stat-card"><div class="stat-value c-neon">' + sessions + '</div><div class="stat-label">训练次数</div></div>';
+  html += '<div class="stat-card"><div class="stat-value c-accent">' + totalHours.toFixed(1) + '</div><div class="stat-label">总时长(小时)</div></div>';
   html += '<div class="stat-card"><div class="stat-value c-yellow">' + monthTricks + '</div><div class="stat-label">录入招式</div></div>';
-  html += '<div class="stat-card"><div class="stat-value c-lime">' + totalMakeup.toFixed(1) + '</div><div class="stat-label">刷课总时长(小时)</div></div>';
+  html += '<div class="stat-card"><div class="stat-value c-lime">' + totalMakeup + '</div><div class="stat-label">刷课总次数</div></div>';
   html += '</div>';
 
-  html += '<div class="section-label">按场地统计</div>';
+  html += '<div class="section-label">按场地统计(次)</div>';
   if (Object.keys(byVenue).length === 0) {
     html += '<div style="font-size:13px;color:rgba(255,255,255,0.3);">暂无记录</div>';
   } else {
-    Object.entries(byVenue).sort((a,b)=>b[1]-a[1]).forEach(([v, h], i) => {
+    Object.entries(byVenue).sort((a,b)=>b[1]-a[1]).forEach(([v, n], i) => {
       const color = VENUE_BAR_PALETTE[i % VENUE_BAR_PALETTE.length];
-      html += '<div class="bar-row"><div class="bar-row-head"><span>' + v + '</span><span class="bar-row-val">' + h.toFixed(1) + ' h</span></div><div class="bar"><div class="bar-fill" style="width:' + (h/maxVenue*100).toFixed(0) + '%;background:' + color + '"></div></div></div>';
+      html += '<div class="bar-row"><div class="bar-row-head"><span>' + v + '</span><span class="bar-row-val">' + n + ' 次</span></div><div class="bar"><div class="bar-fill" style="width:' + (n/maxVenue*100).toFixed(0) + '%;background:' + color + '"></div></div></div>';
     });
   }
 
-  html += '<div class="section-label">按教练统计</div>';
-  if (Object.keys(byCoach).length === 0) {
-    html += '<div style="font-size:13px;color:rgba(255,255,255,0.3);">暂无记录</div>';
-  } else {
-    Object.entries(byCoach).sort((a,b)=>b[1]-a[1]).forEach(([c, h], i) => {
-      const color = COACH_BAR_PALETTE[i % COACH_BAR_PALETTE.length];
-      html += '<div class="bar-row"><div class="bar-row-head"><span>' + c + '</span><span class="bar-row-val">' + h.toFixed(1) + ' h</span></div><div class="bar"><div class="bar-fill" style="width:' + (h/maxCoach*100).toFixed(0) + '%;background:' + color + '"></div></div></div>';
-    });
-  }
-
-  html += '<div class="section-label">按教练统计刷课(h)</div>';
-  if (Object.keys(byCoachMakeup).length === 0) {
+  html += '<div class="section-label">按教练统计刷课(次)</div>';
+  const makeupRows = Object.entries(byCoachMakeup);
+  if (makeupRows.length === 0) {
     html += '<div style="font-size:13px;color:rgba(255,255,255,0.3);">本月没有刷课记录</div>';
   } else {
-    Object.entries(byCoachMakeup).sort((a,b)=>b[1]-a[1]).forEach(([c, h], i) => {
-      const color = COACH_BAR_PALETTE[i % COACH_BAR_PALETTE.length];
-      html += '<div class="bar-row"><div class="bar-row-head"><span>' + c + '</span><span class="bar-row-val">' + h.toFixed(1) + ' h</span></div><div class="bar"><div class="bar-fill" style="width:' + (h/maxCoachMakeup*100).toFixed(0) + '%;background:' + color + '"></div></div></div>';
+    // 按总次数从多到少；次数相同时按教练名稳定排序，避免每次渲染顺序跳动
+    makeupRows.sort((a, b) => {
+      const ta = a[1].lesson + a[1].camp;
+      const tb = b[1].lesson + b[1].camp;
+      return tb - ta || a[0].localeCompare(b[0], 'zh');
     });
+    html += '<div class="makeup-table">';
+    html += '<div class="makeup-tr makeup-th"><span>教练</span><span>1课时</span><span>训练营</span><span>合计</span></div>';
+    makeupRows.forEach(([c, cnt]) => {
+      const total = cnt.lesson + cnt.camp;
+      html += '<div class="makeup-tr"><span>' + c + '</span><span>' + cnt.lesson + '</span><span>' + cnt.camp + '</span><span class="makeup-total">' + total + '</span></div>';
+    });
+    html += '</div>';
   }
 
   html += '<div class="section-label">训练招式明细</div>';
@@ -2408,8 +2423,8 @@ function renderSummary() {
     monthRecs.forEach(r => {
       const day = r.date.slice(8);
       const contentText = contentTextOf(r.content, r.date, starIdx);
-      // 刷课的那天在时长后追加标注，未刷课的保持原样
-      const makeupText = (r.makeup && r.makeupHours > 0) ? ' · 刷课 ' + r.makeupHours + ' 小时' : '';
+      // 时长用灰（与其它数据同色）；刷课类型单独用亮绿标出，不整行都上强调色
+      const makeupText = r.makeup ? '<span class="detail-makeup"> · 刷课 ' + makeupLabel(r.makeup) + '</span>' : '';
       html += '<div class="detail-item"><div class="detail-head"><span class="detail-day">' + (+day) + '日</span><span class="detail-meta">' + r.coach + ' · ' + r.venue + '</span></div><div class="detail-content">' + (contentText || '（未填写内容）') + '</div><div class="detail-duration">' + r.duration + ' 小时' + makeupText + '</div></div>';
     });
     html += '</div>';
@@ -2762,6 +2777,17 @@ async function toggleLibVideo(btn) {
 }
 
 /* 招式库检索下拉：只列出库里已有的招式 */
+
+/* 检索候选浮层正好压在下方「＋ 直接录入招式」按钮上方。个别移动端浏览器在浮层收起的
+   瞬间会把 click 穿透到下层按钮，让录入表单被误展开。判据：穿透来的 click 之前并没有
+   在本按钮上按下过（pointerdown 落在候选上），据此忽略即可。比按时间窗口判断更稳，
+   不受浏览器 click 延迟（最长约 300ms）影响。 */
+let _manTogglePressedSelf = false;
+document.addEventListener('pointerdown', (e) => {
+  const t = document.getElementById('trickManualToggle');
+  _manTogglePressedSelf = !!(t && t.contains(e.target));
+}, true);
+
 function renderTrickOptions(keyword) {
   const listEl = document.getElementById('trickSearchList');
   if (!listEl) return;
@@ -2782,18 +2808,31 @@ function renderTrickOptions(keyword) {
     opt.textContent = v;
     // 移动端：按下只记录坐标，抬起时位移很小才算「点选」，否则视为滑动
     let downPt = null;
+    let picked = false; // 本次按下是否判定为「点选」（用于区分滑动浏览）
     opt.addEventListener('pointerdown', (e) => {
       e.preventDefault(); // 防止输入框失焦
       downPt = { x: e.clientX, y: e.clientY };
+      picked = false;
     });
     opt.addEventListener('pointerup', (e) => {
       const p = downPt; downPt = null;
       if (!p) return;
       if (Math.abs(e.clientX - p.x) > 6 || Math.abs(e.clientY - p.y) > 6) return; // 判定为滑动
+      picked = true;
       const inp = document.getElementById('trickSearchInput');
       inp.value = v;
-      listEl.style.display = 'none';
       renderTrickLibrary();
+      // 这里不能立刻收起浮层：浮层压着下方「＋ 直接录入招式」按钮，
+      // 一旦此刻隐藏，紧随 pointerup 之后的 click 就会命中那个按钮（手机上实测到的问题）。
+      // 因此改为等 click 派发完再收（见下方 click 监听），并设兜底定时器，
+      // 防止个别浏览器不派发 click 时浮层收不起来。
+      clearTimeout(listEl._hideTimer);
+      listEl._hideTimer = setTimeout(() => { listEl.style.display = 'none'; }, 300);
+    });
+    opt.addEventListener('click', () => {
+      if (!picked) return; // 滑动浏览列表：不收起浮层
+      clearTimeout(listEl._hideTimer);
+      listEl.style.display = 'none';
     });
     opt.addEventListener('pointercancel', () => { downPt = null; });
     listEl.appendChild(opt);
@@ -2957,7 +2996,10 @@ function bindTrickLibrary() {
   const manSubmit = document.getElementById('trickManualSubmit');
   const manCancel = document.getElementById('trickManualCancel');
   if (manToggle && manBox && manSubmit && manCancel) {
-    manToggle.addEventListener('click', () => {
+    manToggle.addEventListener('click', (e) => {
+      // 忽略从检索浮层穿透过来的 click：那种 click 之前并没有在本按钮上按下过。
+      // e.detail === 0 表示键盘（Enter / 空格）触发，没有 pointerdown，需放行
+      if (e.detail !== 0 && !_manTogglePressedSelf) return;
       if (manBox.style.display === 'none') {
         resetTrickManual();          // 先清空，并回收上次未提交的视频
         manBox.style.display = 'flex';
