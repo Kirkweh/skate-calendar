@@ -64,39 +64,59 @@
     border-radius: 10px;
     padding: 6px;
     cursor: pointer;
-    height: 88px;
+    height: 96px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     transition: all 0.2s ease;
   }
   .cal-cell:hover { transform: translateY(-2px); border-color: rgba(255,255,255,0.25); }
-  .cal-cell.selected { outline: 2px solid #00e0ff; outline-offset: -2px; }
+  /* 选中：整格深蓝边框。和「今天」的深蓝页眉带同色，但一个是整圈、一个是格子顶部一条，
+     形状完全不同，不会看混（旧版是亮青 #00e0ff 整框 + 青柠 #A8E063 整框，两个都是整圈容易混） */
+  .cal-cell.selected { outline: 2px solid #2F5BEA; outline-offset: -2px; }
   .cal-cell.other-month { opacity: 0.3; }
-  .cal-cell.today .day-num { background: #ff5a3c; color: #fff; border-radius: 50%; }
-  .day-num { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; margin-bottom: 4px; }
-  /* 日期头：数字 + 成招星标 */
-  .day-head { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; }
+  .day-num { font-size: 13px; font-weight: 700; }
+  /* 日期头：数字 + 成招星标，整行水平居中。
+     铺满格子顶部（负 margin 抵消 .cal-cell 的 6px 内边距），这样「今天」能直接把这一整行
+     涂成深蓝页眉带、而不用改格子的内边距；顶部圆角 9px = 格子 10px 圆角 − 1px 边框 */
+  .day-head {
+    display: flex; align-items: center; justify-content: center; gap: 4px;
+    height: 26px;
+    margin: -6px -6px 4px -6px;
+    border-radius: 9px 9px 0 0;
+  }
   .day-head .day-num { margin-bottom: 0; }
   .day-star { font-size: 11px; line-height: 1; }
-  /* 刷课标记：不占用日期行，改为整格柔青柠边框（覆盖「有记录」的橙色边框）。
-     「1课时」与「训练营」共用这一种边框，只表示「当天有刷课」，具体类型在当天特写卡片里写明。
-     外光晕只是视觉加粗，不参与布局，因此日期与 ⭐ 的排布完全不受影响 */
-  .cal-cell.has-makeup {
-    border-color: #A8E063;
-    box-shadow: 0 0 0 1px rgba(168,224,99,0.45);
+  /* 今天：日期所在的整行做成深蓝页眉带（旧版是在日期数字上套一个橙红圆点） */
+  .cal-cell.today .day-head { background: #2F5BEA; }
+  .cal-cell.today .day-num { color: #fff; }
+  /* 刷课标记：不占用日期行，改为格子左侧一条亮绿竖条。
+     旧版是把整格框成绿色，与「选中」的整圈蓝框形状太像、容易看混；
+     这条竖条与整圈边框形状完全不同，一眼能分开。
+     「1课时」与「训练营」共用这一条，只表示「当天有刷课」，具体类型在当天特写卡片里写明 */
+  .cal-cell.has-makeup { position: relative; }
+  .cal-cell.has-makeup::before {
+    content: ''; position: absolute; left: 2px; top: 30px; bottom: 8px; width: 3px;
+    border-radius: 2px; background: #A8E063;
   }
 
-  /* 日历格里的三行内容：纯文字（不再用彩色胶囊），只有教练名前带一个教练色小圆点。
-     场地白字 / 教练白字+色点 / 招式柔青字，把格子里的颜色数量压到最少 */
+  /* 日历格里的三行内容：每行一个「胶囊」——底色 = 该行语义色实心，文字统一压深成灰。
+     场地行用该场地的代表色、教练行用该教练的代表色、招式行统一招式黄；时长留在胶囊外，保持灰色 */
   .cell-line {
     display: flex; align-items: center; gap: 4px;
-    font-size: 11px; line-height: 16px; margin-bottom: 2px;
-    color: rgba(255,255,255,0.9);
+    margin-bottom: 2px;
   }
-  .cell-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .cell-line-trick { color: #5AC8FA; }
-  .coach-dot { width: 6px; height: 6px; border-radius: 50%; flex: 0 0 auto; }
+  .cell-pill {
+    display: inline-block; max-width: 100%; min-width: 0;
+    padding: 1px 4px; border-radius: 999px;
+    font-size: 11px; line-height: 15px;
+    /* 实心底上的文字统一用灰：彩色底配彩色字会互相抢眼 */
+    color: #4A4A5A;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* 手机格子更窄：胶囊左右内边距再收窄一点，避免「孙迎」这类两字名字被截成「孙…」 */
+  @media (max-width: 768px) { .cell-pill { padding: 1px 3px; } }
+  .cell-dur { font-size: 11px; line-height: 15px; color: rgba(255,255,255,0.55); flex: 0 0 auto; }
 
   /* Form */
   .form-group { margin-bottom: 12px; }
@@ -330,6 +350,11 @@
   /* 「招式名称（必填）」等输入框的提示灰度，由上面的全局 ::placeholder 规则统一处理 */
   .trick-manual-actions { display: flex; gap: 8px; }
   .trick-manual-actions .btn { flex: 1; }
+  /* 招式库底部常驻引导语：放在招式列表之后，库空或不为空都显示 */
+  .trick-hint {
+    margin-top: 16px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.06);
+    text-align: center; color: rgba(255,255,255,0.4); font-size: 13px; line-height: 1.6;
+  }
 
   /* Buttons */
   .btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; transition: all 0.2s; cursor: pointer; border: none; font-size: 13px; }
@@ -361,9 +386,8 @@
      （原来的青 187° / 黄 50° / 亮绿 74° 彼此挤在一起，橙红 11° 又最跳） */
   .c-neon { color: #5AC8FA; }   /* 训练次数 —— 柔青 */
   .c-accent { color: #B08CFF; } /* 总时长(小时) —— 柔紫 */
-  .c-yellow { color: #FFB86B; } /* 录入招式 —— 柔橙 */
+  .c-yellow { color: #FFD166; } /* 录入招式 —— 招式黄 */
   .c-lime { color: #A8E063; }   /* 刷课总次数 —— 柔青柠 */
-
   /* 区块标题统一白色，与下方灰色的柱状图内容形成层级 */
   .section-label { font-size: 13px; color: #fff; font-weight: 600; margin-bottom: 8px; margin-top: 16px; }
   .section-label:first-of-type { margin-top: 0; }
@@ -376,7 +400,8 @@
   .bar-fill { height: 100%; border-radius: 4px; transition: width 0.5s ease; }
 
   /* 按教练统计刷课：小表格——行=教练，列=1课时 / 训练营 / 合计。
-     字号全部 13px，层级靠颜色区分：表头最淡 < 数据灰（与柱状图文字同色）< 合计亮绿 */
+     字号全部 13px，层级靠颜色区分：表头最淡 < 数据灰（与柱状图文字同色）< 合计亮绿；
+     教练名单独用该教练的代表色（与日历格里的教练行同色） */
   .makeup-table { font-size: 13px; }
   .makeup-tr {
     display: grid; grid-template-columns: 1.6fr 0.9fr 0.9fr 0.9fr;
@@ -442,7 +467,7 @@
     transform-origin: center center;
   }
   .zoom-head { display: flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; margin-bottom: 12px; }
-  /* 特写卡片与「训练招式明细」同构：四行纯文字（日期行 → 教练·场地 → 招式 → 时长·刷课），不用彩色胶囊 */
+  /* 特写卡片与「训练内容明细」同构：四行纯文字（日期行 → 教练·场地 → 招式 → 时长·刷课），不用彩色胶囊 */
   .zoom-body { display: flex; flex-direction: column; gap: 4px; }
   .zoom-line { font-size: 13px; line-height: 1.5; word-break: break-word; }
   .zoom-meta { color: rgba(255,255,255,0.6); }
@@ -574,12 +599,12 @@
       <!-- Monthly Summary -->
       <div class="glass">
         <h3 class="panel-title">📊 <span id="summaryTitle">2026年9月 训练总结</span></h3>
-        <div id="summaryBody"><div class="summary-grid"><div class="stat-card"><div class="stat-value c-neon">0</div><div class="stat-label">训练次数</div></div><div class="stat-card"><div class="stat-value c-accent">0.0</div><div class="stat-label">总时长(小时)</div></div><div class="stat-card"><div class="stat-value c-yellow">0</div><div class="stat-label">录入招式</div></div><div class="stat-card"><div class="stat-value c-lime">0</div><div class="stat-label">刷课总次数</div></div></div><div class="section-label">按场地统计(次)</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">暂无记录</div><div class="section-label">按教练统计刷课(次)</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">本月没有刷课记录</div><div class="section-label">训练招式明细</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">本月还没有训练记录，去日历里添加吧！</div></div>
+        <div id="summaryBody"><div class="summary-grid"><div class="stat-card"><div class="stat-value c-neon">0</div><div class="stat-label">训练次数</div></div><div class="stat-card"><div class="stat-value c-accent">0.0</div><div class="stat-label">总时长(小时)</div></div><div class="stat-card"><div class="stat-value c-yellow">0</div><div class="stat-label">录入招式</div></div><div class="stat-card"><div class="stat-value c-lime">0</div><div class="stat-label">刷课总次数</div></div></div><div class="section-label">按场地统计(次)</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">暂无记录</div><div class="section-label">按教练统计刷课(次)</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">本月没有刷课记录</div><div class="section-label">训练内容明细</div><div style="font-size:13px;color:rgba(255,255,255,0.3);">本月还没有训练记录，去日历里添加吧！</div></div>
       </div>
     </section>
   </div>
 
-  <footer class="footer">数据与视频均保存在本地浏览器 · 不会上传到服务器 · <span id="storageStatus">本地存储（刷新不丢失） · 已存 2 天</span> · <span id="appVersion">v5.24</span></footer>
+  <footer class="footer">数据与视频均保存在本地浏览器 · 不会上传到服务器 · <span id="storageStatus">本地存储（刷新不丢失） · 已存 2 天</span> · <span id="appVersion">v5.31</span></footer>
 
   <!-- 危险操作：置于页面最下方，避免误触 -->
   <div class="bottom-danger">
@@ -594,13 +619,8 @@
       <h3 class="panel-title" style="margin:0;">⭐ 招式库</h3>
       <button type="button" id="trickCloseBtn" class="btn btn-ghost" style="font-size:13px;">✕ 关闭</button>
     </div>
-    <div class="combo" style="margin-bottom:12px;">
-      <input id="trickSearchInput" class="form-input combo-input" type="text" placeholder="输入或选择要检索的招式" autocomplete="off">
-      <button type="button" id="trickSearchArrow" class="combo-arrow"><span class="combo-caret"></span></button>
-      <div id="trickSearchList" class="combo-list" style="display:none;"></div>
-    </div>
-
-    <!-- 直接录入招式：补录很久以前成的招（日期可留空，视频可选） -->
+    <!-- 直接录入招式：补录很久以前成的招（日期可留空，视频可选）。
+         放在检索框上方——检索候选浮层是往下弹的，压不到这个按钮，从根上避免点选候选时误触展开表单 -->
     <button type="button" id="trickManualToggle" class="btn btn-ghost" style="width:100%;font-size:13px;margin-bottom:12px;">＋ 直接录入招式</button>
     <div id="trickManualBox" class="trick-manual" style="display:none;">
       <input id="trickManualName" class="form-input" type="text" placeholder="招式名称（必填）" autocomplete="off">
@@ -621,7 +641,16 @@
       </div>
     </div>
 
+    <div class="combo" style="margin-bottom:12px;">
+      <input id="trickSearchInput" class="form-input combo-input" type="text" placeholder="输入或选择要检索的招式" autocomplete="off">
+      <button type="button" id="trickSearchArrow" class="combo-arrow"><span class="combo-caret"></span></button>
+      <div id="trickSearchList" class="combo-list" style="display:none;"></div>
+    </div>
+
     <div id="trickBody" class="trick-body"></div>
+
+    <!-- 常驻引导语：固定放在面板最下方（列表之后），库空或不为空都显示，不会被列表挤掉 -->
+    <div class="trick-hint">在训练记录里给成功的视频点「⭐ 录入招式库」，<br>也可以点顶部「＋ 直接录入招式」把以前成的招补进来</div>
   </div>
 </div>
 
@@ -662,22 +691,64 @@ const CUSTOM_CONTENT_KEY = 'skate_custom_content_v1';
 const STORAGE_KEY = 'skate_training_records_v1';
 const TRICK_LIB_KEY = 'skate_trick_library_v1';
 const DEFAULTS_CLEARED_KEY = 'skate_defaults_cleared_v1'; // 清空历史数据后置位，防止内置默认项复活
-const COACH_COLORS = {
-  '自己练习': '#ffd60a'
-};
-// 为自定义教练/场地生成颜色
-let _customColorIdx = 0;
-const CUSTOM_COLOR_PALETTE = ['#ff5a3c','#00e0ff','#a855f7','#c6ff00','#ff3db2','#ffd60a','#4ade80','#f97316','#ec4899','#22d3ee'];
-// 月度总结「按场地统计」横向柱状图配色：组内按顺序取色，互不重复
-const VENUE_BAR_PALETTE = ['#22d3ee', '#38bdf8', '#2dd4bf', '#0ea5e9', '#14b8a6', '#60a5fa'];
-function getColorFor(name, baseMap) {
-  if (baseMap[name]) return baseMap[name];
-  // 用名称哈希选色
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  return CUSTOM_COLOR_PALETTE[Math.abs(hash) % CUSTOM_COLOR_PALETTE.length];
+/* ===== 场地 / 教练的分类色板 =====
+   两套色板各自「色相铺开、彼此拉得开」，同类内一眼能区分；并整体避开四个语义色
+   （招式黄 / 刷课青柠 / 次数柔青 / 时长短紫）所在的色相，避免"看见某个色不知道指什么"。
+   教练色板按「场地色板整体错开 3 位」排列：两套色板同为 红 / 橙 / 绿 / 蓝 / 紫 / 粉 六个色相，
+   但教练色整体提亮一档（名字在日历格里是 11px 小字，深底上要更亮才看得清），
+   且顺序错开半圈，让「同一列」的场地色与教练色相隔 110° 以上——第 1 个场地与第 1 个教练不会像。 */
+const VENUE_PALETTE = ['#FF6B6B', '#FF9F45', '#3FC98F', '#4EA8FF', '#C77DFF', '#F5669C'];
+const COACH_PALETTE = ['#8CC4FF', '#DCA6FF', '#FF93BE', '#FF9B9B', '#FFC177', '#6FE0AE'];
+
+/* 颜色分配：一个名字第一次出现时，从色板里领一个「同类中还没被占用」的颜色，并把结果存本地。
+   这样同类内最多 6 个名字互不相同（超过 6 个才开始复用），且同一名字的颜色永远不变，
+   与录入顺序、统计排名都无关；只有「清空历史数据」才会重置这套分配。
+   （早前是按名字哈希直接取色，色板只有 6 个，三个场地就可能撞到同一个颜色。） */
+const COLOR_ASSIGN_KEY = 'skate_color_assign_v1';
+const COLOR_ASSIGN_VER = 2; // 色板顺序调整后自增：旧版本的分配作废、按新色板重算一次
+let _colorAssign = null; // { venue: {名字: 颜色}, coach: {名字: 颜色} }
+function colorAssignStore() {
+  if (_colorAssign) return _colorAssign;
+  try {
+    const o = JSON.parse(localStorage.getItem(COLOR_ASSIGN_KEY) || '{}');
+    // 版本不一致（换了色板顺序）就整体作废重算，避免旧配色把新顺序顶掉
+    _colorAssign = (o.ver === COLOR_ASSIGN_VER)
+      ? { venue: o.venue || {}, coach: o.coach || {} }
+      : { venue: {}, coach: {} };
+  } catch (e) { _colorAssign = { venue: {}, coach: {} }; }
+  return _colorAssign;
 }
-function coachColor(c) { return getColorFor(c, COACH_COLORS); }
+function saveColorAssign(store) {
+  try {
+    localStorage.setItem(COLOR_ASSIGN_KEY, JSON.stringify({ ver: COLOR_ASSIGN_VER, venue: store.venue, coach: store.coach }));
+  } catch (e) { /* 存不下就只保留内存态 */ }
+}
+function pickColor(kind, name) {
+  const palette = kind === 'coach' ? COACH_PALETTE : VENUE_PALETTE;
+  const s = String(name || '').trim();
+  if (!s) return palette[0];
+  const store = colorAssignStore();
+  const map = store[kind];
+  if (!map[s]) {
+    const used = Object.keys(map).map(k => map[k]);
+    // 先用同类里还没被占用的颜色；6 个都占了才挑用得最少的那个，把重复降到最低
+    let color = palette.find(c => used.indexOf(c) === -1);
+    if (!color) {
+      const cnt = {};
+      used.forEach(c => { cnt[c] = (cnt[c] || 0) + 1; });
+      color = palette.slice().sort((a, b) => (cnt[a] || 0) - (cnt[b] || 0))[0];
+    }
+    map[s] = color;
+    saveColorAssign(store);
+  }
+  return map[s];
+}
+function venueColor(v) { return pickColor('venue', v); }
+function coachColor(c) { return pickColor('coach', c); }
+
+/* 招式黄：与 CSS 里的 .c-yellow 保持一致。日历格招式胶囊用实心招式黄做底，
+   所以这里也需要一份色值（场地/教练色直接用各自色板，不需要另存） */
+const TRICK_COLOR = '#FFD166';
 
 /* ===== 自定义教练/场地存储 ===== */
 function loadCustomCoaches() {
@@ -894,6 +965,8 @@ function clearAllData() {
     localStorage.removeItem(CUSTOM_COACHES_KEY);
     localStorage.removeItem(CUSTOM_VENUES_KEY);
     localStorage.removeItem(CUSTOM_CONTENT_KEY);
+    localStorage.removeItem(COLOR_ASSIGN_KEY); // 连同场地/教练配色分配一起重置
+    _colorAssign = null;
     localStorage.setItem(DEFAULTS_CLEARED_KEY, '1');
   } catch (e) { console.warn('clearAllData 清除自定义项失败:', e); }
   // 同步清空本地视频库
@@ -1146,11 +1219,11 @@ function renderCalendar() {
    1) 场地（含时长，如「五棵松 1.5h」）2) 教练 3)「📹N + 招式名」
    任一行为空则返回空串，由调用方决定是否渲染该行。
    传入 date 与 starIdx 时，已成招（当天录入招式库）的招式名后跟 ⭐，
-   与「训练招式明细」口径一致；日历格不传，保持紧凑 */
+   与「训练内容明细」口径一致；日历格不传，保持紧凑 */
 function dayLinesOf(rec, date, starIdx) {
   const dur = (rec.duration === undefined || rec.duration === null || String(rec.duration).trim() === '')
     ? '' : String(rec.duration).trim() + 'h';
-  const venue = [rec.venue, dur].filter(Boolean).join(' ').trim();
+  const venue = (rec.venue || '').trim();
   const coach = (rec.coach || '').trim();
   const vCount = collectVideoIds(rec.content).length;
   const trickNames = (!rec.content ? [] : (Array.isArray(rec.content) ? rec.content : [rec.content]))
@@ -1160,7 +1233,7 @@ function dayLinesOf(rec, date, starIdx) {
     .map(n => n + (starIdx && isTrickStarred(starIdx, date, n) ? ' ⭐' : ''))
     .join('、');
   const trick = [vCount > 0 ? '📹' + vCount : '', trickNames].filter(Boolean).join(' ').trim();
-  return { venue, coach, trick };
+  return { venue, dur, coach, trick };
 }
 
 function buildCell(day, monthOffset, isOther) {
@@ -1193,30 +1266,34 @@ function buildCell(day, monthOffset, isOther) {
   cell.appendChild(head);
 
   if (rec) {
-    // 刷课的日子整格换成柔青柠边框（1课时与训练营共用）：不占日期行，⭐ 的位置不受影响
+    // 刷课的日子在格子左侧显示一条亮绿竖条（1课时与训练营共用）：不占日期行，⭐ 的位置不受影响
     if (rec.makeup) cell.classList.add('has-makeup');
     // 日历格三行固定顺序：第 1 行场地（含时长）、第 2 行教练、第 3 行「视频标记 + 招式」
-    // 三行一律纯文字，只有教练名前带一个教练色小圆点——不再每行一个色块，格子里的颜色数量最少
+    // 每行做成一个「实心胶囊」：底色 = 该行语义色本身，文字统一灰（见 .cell-pill 的 color）。
+    // 场地行用该场地的代表色、教练行用该教练的代表色、招式行统一招式黄；时长留在胶囊外，保持灰色
     const lines = dayLinesOf(rec);
-    const addLine = (cls, text, dotColor) => {
-      if (!text) return;
+    const addLine = (pillColor, pillText, trailing) => {
+      if (!pillText && !trailing) return;
       const line = document.createElement('div');
-      line.className = 'cell-line' + (cls ? ' ' + cls : '');
-      if (dotColor) {
-        const dot = document.createElement('span');
-        dot.className = 'coach-dot';
-        dot.style.background = dotColor;
-        line.appendChild(dot);
+      line.className = 'cell-line';
+      if (pillText) {
+        const pill = document.createElement('span');
+        pill.className = 'cell-pill';
+        pill.textContent = pillText;
+        pill.style.background = pillColor;
+        line.appendChild(pill);
       }
-      const txt = document.createElement('span');
-      txt.className = 'cell-text';
-      txt.textContent = text;
-      line.appendChild(txt);
+      if (trailing) {
+        const rest = document.createElement('span');
+        rest.className = 'cell-dur';
+        rest.textContent = trailing;
+        line.appendChild(rest);
+      }
       cell.appendChild(line);
     };
-    addLine('', lines.venue);                                            // 第 1 行：场地 + 时长
-    addLine('', lines.coach, lines.coach ? coachColor(lines.coach) : null); // 第 2 行：教练色点 + 教练名
-    addLine('cell-line-trick', lines.trick);                             // 第 3 行：视频标记 + 招式名
+    addLine(lines.venue ? venueColor(lines.venue) : '', lines.venue, lines.dur); // 第 1 行：场地胶囊 + 时长
+    addLine(lines.coach ? coachColor(lines.coach) : '', lines.coach);           // 第 2 行：教练胶囊
+    addLine(TRICK_COLOR, lines.trick);                                       // 第 3 行：招式胶囊
   }
 
   if (selectedDate === key) cell.classList.add('selected');
@@ -1267,7 +1344,7 @@ function openDayZoom(key, fromRect) {
   }
   card.appendChild(head);
 
-  // 与「训练招式明细」完全同构：日期行 → 教练·场地 → 招式 → 时长·刷课，全部纯文字、不用彩色胶囊
+  // 与「训练内容明细」完全同构：日期行 → 教练·场地 → 招式 → 时长·刷课，全部纯文字、不用彩色胶囊
   // 成招的招式名后跟 ⭐，口径与明细一致
   const lines = dayLinesOf(rec, key, buildTrickStarIndex());
   const body = document.createElement('div');
@@ -2389,8 +2466,9 @@ function renderSummary() {
   if (Object.keys(byVenue).length === 0) {
     html += '<div style="font-size:13px;color:rgba(255,255,255,0.3);">暂无记录</div>';
   } else {
-    Object.entries(byVenue).sort((a,b)=>b[1]-a[1]).forEach(([v, n], i) => {
-      const color = VENUE_BAR_PALETTE[i % VENUE_BAR_PALETTE.length];
+    Object.entries(byVenue).sort((a,b)=>b[1]-a[1]).forEach(([v, n]) => {
+      // 每个场地固定用自己的代表色（与日历格里的场地行同色），不再按排名临时取色
+      const color = venueColor(v);
       html += '<div class="bar-row"><div class="bar-row-head"><span>' + v + '</span><span class="bar-row-val">' + n + ' 次</span></div><div class="bar"><div class="bar-fill" style="width:' + (n/maxVenue*100).toFixed(0) + '%;background:' + color + '"></div></div></div>';
     });
   }
@@ -2410,12 +2488,13 @@ function renderSummary() {
     html += '<div class="makeup-tr makeup-th"><span>教练</span><span>1课时</span><span>训练营</span><span>合计</span></div>';
     makeupRows.forEach(([c, cnt]) => {
       const total = cnt.lesson + cnt.camp;
-      html += '<div class="makeup-tr"><span>' + c + '</span><span>' + cnt.lesson + '</span><span>' + cnt.camp + '</span><span class="makeup-total">' + total + '</span></div>';
+      // 教练名用该教练的代表色（与日历格里的教练行同色），其余数字仍为灰色
+      html += '<div class="makeup-tr"><span style="color:' + coachColor(c) + '">' + c + '</span><span>' + cnt.lesson + '</span><span>' + cnt.camp + '</span><span class="makeup-total">' + total + '</span></div>';
     });
     html += '</div>';
   }
 
-  html += '<div class="section-label">训练招式明细</div>';
+  html += '<div class="section-label">训练内容明细</div>';
   if (monthRecs.length === 0) {
     html += '<div style="font-size:13px;color:rgba(255,255,255,0.3);">本月还没有训练记录，去日历里添加吧！</div>';
   } else {
@@ -2666,8 +2745,8 @@ function renderTrickLibrary() {
   const q = (document.getElementById('trickSearchInput')?.value || '').trim();
   const all = groupTrickLibrary();
   if (!all.length) {
-    box.innerHTML = '<div class="empty-state">招式库还是空的<br>在训练记录里给成功的视频点「⭐ 录入招式库」，'
-      + '<br>也可以点上方「＋ 直接录入招式」把以前成的招补进来</div>';
+    // 只留「招式库还是空的」；引导语改由面板底部的常驻说明承担（见 index 里的 .trick-hint）
+    box.innerHTML = '<div class="empty-state">招式库还是空的</div>';
     return;
   }
   const found = searchTrickLibrary(q);
@@ -2778,16 +2857,6 @@ async function toggleLibVideo(btn) {
 
 /* 招式库检索下拉：只列出库里已有的招式 */
 
-/* 检索候选浮层正好压在下方「＋ 直接录入招式」按钮上方。个别移动端浏览器在浮层收起的
-   瞬间会把 click 穿透到下层按钮，让录入表单被误展开。判据：穿透来的 click 之前并没有
-   在本按钮上按下过（pointerdown 落在候选上），据此忽略即可。比按时间窗口判断更稳，
-   不受浏览器 click 延迟（最长约 300ms）影响。 */
-let _manTogglePressedSelf = false;
-document.addEventListener('pointerdown', (e) => {
-  const t = document.getElementById('trickManualToggle');
-  _manTogglePressedSelf = !!(t && t.contains(e.target));
-}, true);
-
 function renderTrickOptions(keyword) {
   const listEl = document.getElementById('trickSearchList');
   if (!listEl) return;
@@ -2822,8 +2891,8 @@ function renderTrickOptions(keyword) {
       const inp = document.getElementById('trickSearchInput');
       inp.value = v;
       renderTrickLibrary();
-      // 这里不能立刻收起浮层：浮层压着下方「＋ 直接录入招式」按钮，
-      // 一旦此刻隐藏，紧随 pointerup 之后的 click 就会命中那个按钮（手机上实测到的问题）。
+      // 这里不能立刻收起浮层：浮层压着下方的招式列表，
+      // 一旦此刻隐藏，紧随 pointerup 之后的 click 就会穿透到下面的招式行按钮（手机上实测到的问题）。
       // 因此改为等 click 派发完再收（见下方 click 监听），并设兜底定时器，
       // 防止个别浏览器不派发 click 时浮层收不起来。
       clearTimeout(listEl._hideTimer);
@@ -2833,6 +2902,9 @@ function renderTrickOptions(keyword) {
       if (!picked) return; // 滑动浏览列表：不收起浮层
       clearTimeout(listEl._hideTimer);
       listEl.style.display = 'none';
+      // 选完立刻收起软键盘，否则键盘会一直挂在下方挡住招式列表
+      const inp = document.getElementById('trickSearchInput');
+      if (inp) inp.blur();
     });
     opt.addEventListener('pointercancel', () => { downPt = null; });
     listEl.appendChild(opt);
@@ -2996,10 +3068,7 @@ function bindTrickLibrary() {
   const manSubmit = document.getElementById('trickManualSubmit');
   const manCancel = document.getElementById('trickManualCancel');
   if (manToggle && manBox && manSubmit && manCancel) {
-    manToggle.addEventListener('click', (e) => {
-      // 忽略从检索浮层穿透过来的 click：那种 click 之前并没有在本按钮上按下过。
-      // e.detail === 0 表示键盘（Enter / 空格）触发，没有 pointerdown，需放行
-      if (e.detail !== 0 && !_manTogglePressedSelf) return;
+    manToggle.addEventListener('click', () => {
       if (manBox.style.display === 'none') {
         resetTrickManual();          // 先清空，并回收上次未提交的视频
         manBox.style.display = 'flex';
@@ -3062,13 +3131,29 @@ function bindTrickLibrary() {
   if (!inp || !arrow || !listEl) return;
   const openList = () => { renderTrickOptions(''); listEl.style.display = ''; };
   const closeList = () => { listEl.style.display = 'none'; };
-  inp.addEventListener('focus', openList);
+
+  /* 手机上点检索框会弹出软键盘，键盘占掉下半屏、挡住招式列表。
+     打字停下约 1 秒就自动收起键盘；想继续检索时，再点一下输入框（或右侧小三角）键盘会重新弹出。
+     注意拼音输入过程中不能收（会打断候选词），因此监听 composition 事件。 */
+  let blurTimer = null;
+  let composing = false;
+  const armBlur = () => {
+    clearTimeout(blurTimer);
+    if (composing) return;
+    blurTimer = setTimeout(() => { if (!composing) inp.blur(); }, 1000);
+  };
+  const cancelBlur = () => clearTimeout(blurTimer);
+
+  inp.addEventListener('compositionstart', () => { composing = true; cancelBlur(); });
+  inp.addEventListener('compositionend', () => { composing = false; armBlur(); });
+  inp.addEventListener('focus', () => { cancelBlur(); openList(); });
   inp.addEventListener('input', () => {
     renderTrickOptions(inp.value);
     listEl.style.display = '';
     renderTrickLibrary();
+    armBlur();
   });
-  inp.addEventListener('blur', () => { closeList(); });
+  inp.addEventListener('blur', () => { cancelBlur(); closeList(); });
   inp.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') { e.preventDefault(); closeList(); renderTrickLibrary(); inp.blur(); }
     else if (e.key === 'Escape') { closeList(); }
@@ -3078,6 +3163,12 @@ function bindTrickLibrary() {
     if (listEl.style.display === 'none') { openList(); inp.focus(); }
     else closeList();
   });
+
+  // 手指在结果区滑动 = 想看下面的招式列表，此时一并收起键盘（弹层整体在 .overlay-panel 上滚动）
+  const panelEl = document.querySelector('#trickOverlay .overlay-panel');
+  if (panelEl) {
+    panelEl.addEventListener('scroll', () => { if (document.activeElement === inp) inp.blur(); }, { passive: true });
+  }
 }
 
 /* =========================
